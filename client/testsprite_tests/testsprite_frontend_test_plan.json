@@ -1,0 +1,609 @@
+[
+  {
+    "id": "TC001",
+    "title": "Start Pricing Audit journey from Landing Page",
+    "description": "Verifies that selecting Optimise Existing Product starts an Audit-mode mind map session and shows the expected root classification question.",
+    "category": "Landing Page",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Optimise Existing Product\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Optimise Existing Product\" card"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"confirm selling status\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Start Pricing Strategy journey from Landing Page",
+    "description": "Verifies that selecting Launch New Product starts a Strategy-mode mind map session and shows the expected root classification question.",
+    "category": "Landing Page",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Launch New Product\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Launch New Product\" card"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"prior sales\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Landing Page shows both journey choices on initial load",
+    "description": "Verifies the Landing Page presents both journey entry points to the user.",
+    "category": "Landing Page",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Optimise Existing Product\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Launch New Product\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Landing\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Audit journey shows a loading indicator while mind map initializes",
+    "description": "Verifies a loading spinner appears immediately after selecting Optimise Existing Product while the mind map is being prepared.",
+    "category": "Landing Page",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Optimise Existing Product\" card"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Loading\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Strategy journey shows a loading indicator while mind map initializes",
+    "description": "Verifies a loading spinner appears immediately after selecting Launch New Product while the mind map is being prepared.",
+    "category": "Landing Page",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Launch New Product\" card"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Loading\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Audit root classification node is readable and visible after load",
+    "description": "Verifies the first (root) mind-map classification prompt is visible and readable after starting Audit mode.",
+    "category": "Landing Page",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Optimise Existing Product\" card"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Root classification node\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"selling status\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Strategy root classification node is readable and visible after load",
+    "description": "Verifies the first (root) mind-map classification prompt is visible and readable after starting Strategy mode.",
+    "category": "Landing Page",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Launch New Product\" card"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Root classification node\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"prior sales\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Initial mind map loads with root journey classification node",
+    "description": "Verifies the landing mind map renders and the user can see the starting node(s) needed to begin the journey.",
+    "category": "Mind Map Visualization",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify page title contains \"PricePoint\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Pricing Audit\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Pricing Strategy\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map canvas\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Expand journey nodes from the root and reveal stage nodes",
+    "description": "Verifies that expanding the journey reveals additional stage-specific nodes on the mind map.",
+    "category": "Mind Map Visualization",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map canvas\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pricing Strategy\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Expand\" on the selected journey node"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Product Classification\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Market Intelligence\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Business Goals\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Select a product type within Product Classification",
+    "description": "Verifies the user can open Product Classification and choose a product type option to progress.",
+    "category": "Mind Map Visualization",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pricing Strategy\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Expand\" on the selected journey node"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Product Classification\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Product type\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Select \"Physical product\" from dropdown \"Product type\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Physical product\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Answer a numeric cost input question in Product Deep Dive",
+    "description": "Verifies the user can open Product Deep Dive and enter a valid numeric cost input.",
+    "category": "Mind Map Visualization",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pricing Strategy\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Expand\" on the selected journey node"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Product Deep Dive\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Cost\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"25\" into the field \"Cost\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"25\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Validation message appears for non-numeric cost input",
+    "description": "Verifies the UI prevents non-numeric values for a cost input and shows a visible validation message.",
+    "category": "Mind Map Visualization",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pricing Strategy\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Expand\" on the selected journey node"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Product Deep Dive\""
+      },
+      {
+        "type": "action",
+        "description": "Fill \"abc\" into the field \"Cost\""
+      },
+      {
+        "type": "action",
+        "description": "Press \"Enter\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Enter a valid number\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Pan and zoom the mind map canvas",
+    "description": "Verifies the user can use the canvas controls to zoom and pan around the mind map.",
+    "category": "Mind Map Visualization",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map canvas\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Zoom in\" control"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Zoom in\" control"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Fit view\" control"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Mind map canvas\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Complete required nodes and see three-tier price recommendation and Premium Report preview node",
+    "description": "Verifies completing the required stage nodes reveals the in-app three-tier price recommendation and the Premium Report preview node.",
+    "category": "Mind Map Visualization",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pricing Strategy\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Expand\" on the selected journey node"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Complete\" on \"Product Classification\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Complete\" on \"Product Deep Dive\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Complete\" on \"Market Intelligence\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Three-tier price recommendation\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Premium Report\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Refresh resets in-progress answers due to local-only state (known limitation)",
+    "description": "Verifies that refreshing the browser clears in-progress inputs because state is local-only and the user can observe the reset in the UI.",
+    "category": "Mind Map Visualization",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pricing Strategy\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Expand\" on the selected journey node"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Product Deep Dive\""
+      },
+      {
+        "type": "action",
+        "description": "Fill \"30\" into the field \"Cost\""
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"30\" is not visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Cost\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Toggle theme from default to dark mode on the main page",
+    "description": "Verifies the theme toggle switches the UI from the default theme to dark mode on the landing/mind-map page.",
+    "category": "Theme Toggle",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Theme toggle button\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Theme toggle button\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Dark\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Dark theme icon\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Toggle theme from dark mode back to light mode",
+    "description": "Verifies the theme toggle can switch back to light mode after switching to dark mode.",
+    "category": "Theme Toggle",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Theme toggle button\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Dark\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Theme toggle button\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Light\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Light theme icon\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Theme toggle remains functional after multiple consecutive toggles",
+    "description": "Verifies the toggle can be clicked repeatedly without becoming unresponsive and the visible mode indicator continues to change.",
+    "category": "Theme Toggle",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Theme toggle button\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Dark\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Theme toggle button\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Light\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Theme toggle button\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Dark\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Theme toggle is available and visible on initial page load",
+    "description": "Verifies the header theme toggle control is present to the user upon loading the application.",
+    "category": "Theme Toggle",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Header\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Theme toggle button\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Light\" is visible"
+      }
+    ]
+  }
+]

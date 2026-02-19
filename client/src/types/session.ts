@@ -10,15 +10,19 @@ export type ProductType = 'physical' | 'service' | 'digital';
 
 /** Stages in the questionnaire flow */
 export type SessionStage =
-    | 'journey_selection'    // Root — choose A or B
-    | 'product_classification' // Stage 1 — Q1.1–Q1.5
-    | 'product_deep_dive'     // Stage 2A/2B/2C depending on product type
-    | 'market_intelligence'   // Stage 3
-    | 'business_goals'        // Stage 4
-    | 'distribution_legal'    // Stage 5
-    | 'psychological_pricing' // Stage 6
-    | 'results'               // In-app three-tier output
-    | 'report_preview';       // Premium report upsell gate
+    | 'journey_selection'
+    | 'product_classification'
+    | 'market_research'
+    | 'product_value'
+    | 'financials'
+    | 'van_westendorp'
+    | 'product_deep_dive'
+    | 'market_intelligence'
+    | 'business_goals'
+    | 'distribution_legal'
+    | 'psychological_pricing'
+    | 'results'
+    | 'report_preview';
 
 // ----- Journey A Context (Established Seller) -----
 export interface JourneyAContext {

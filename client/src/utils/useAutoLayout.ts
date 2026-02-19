@@ -4,10 +4,15 @@ import { Node, Edge, Position } from 'reactflow';
 // ── Type-specific node dimensions ────────────────────────────
 // These must match the actual CSS dimensions of each component
 // so Dagre's collision math is based on the real footprint.
+//
+// classificationNode height is calculated per-card based on
+// the number of fields, but we use a generous default here
+// so Dagre leaves enough room even for the tallest card.
 const NODE_DIMS: Record<string, { width: number; height: number }> = {
     rootNode: { width: 200, height: 200 },
     journeyNode: { width: 320, height: 180 },
-    classificationNode: { width: 400, height: 520 }, // 3 inputs + button
+    classificationNode: { width: 400, height: 520 },
+    resultNode: { width: 700, height: 420 },
     stageNode: { width: 224, height: 64 },
 };
 
@@ -18,7 +23,7 @@ export const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
     // LR = root on LEFT, journeys / classification cards branch RIGHT
-    dagreGraph.setGraph({ rankdir: 'LR', nodesep: 100, ranksep: 280 });
+    dagreGraph.setGraph({ rankdir: 'LR', nodesep: 250, ranksep: 400 });
 
     nodes.forEach((node) => {
         // Use the real dimensions for each type — prevents overlap AND

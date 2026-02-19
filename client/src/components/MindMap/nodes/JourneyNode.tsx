@@ -37,13 +37,16 @@ function JourneyNodeComponent({ id, data }: NodeProps<JourneyNodeData>) {
 
     const setJourneyType = useSessionStore((s) => s.setJourneyType);
     const expandJourney = useMindMapStore((s) => s.expandJourney);
-    const isExpanded = useMindMapStore((s) => s.isExpanded);
+    const nodes = useMindMapStore((s) => s.nodes);
     const { fitView } = useReactFlow();
 
     const handleClick = useCallback(() => {
-        if (isExpanded) return;
+        // Guard: prevent double-expansion — check if stage-1 already exists
+        const alreadyExpanded = nodes.some((n) => n.id === 'stage-1');
+        if (alreadyExpanded || dimmed) return;
+
         setJourneyType(config.journeyType);
-        expandJourney(id); // Pass node ID — "Calculate-First" reads position from store
+        expandJourney(id);
 
         // Pan camera to the new classification card after it renders
         setTimeout(() => {
@@ -54,7 +57,7 @@ function JourneyNodeComponent({ id, data }: NodeProps<JourneyNodeData>) {
                 maxZoom: 0.8,
             });
         }, 200);
-    }, [id, isExpanded, setJourneyType, expandJourney, fitView, config.journeyType]);
+    }, [id, nodes, dimmed, setJourneyType, expandJourney, fitView, config.journeyType]);
 
     return (
         <div
