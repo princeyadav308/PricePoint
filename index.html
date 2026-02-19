@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blueprint Spotlight Effect</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        /* ===== SCENE CONTAINER ===== */
+        #scene {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #114075;
+            overflow: hidden;
+        }
+
+        /* ===== BACKGROUND LAYER (Unified) ===== */
+        #bg-layer {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background-image: url('Untitled.svg');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: cover;
+        }
+
+        /* Decorative color blobs behind content */
+        .ellipse-1 {
+            position: absolute;
+            width: 568px;
+            height: 550px;
+            left: -212px;
+            top: -205px;
+            border-radius: 50%;
+            background: #C43A3A;
+            filter: blur(200px);
+            z-index: 0;
+        }
+
+        .ellipse-2 {
+            position: absolute;
+            width: 721px;
+            height: 690px;
+            left: 1253px;
+            top: 700px;
+            border-radius: 50%;
+            background: #1B9E98;
+            filter: blur(200px);
+            z-index: 0;
+        }
+
+        /* ===== DARKNESS OVERLAY ===== */
+        /* This covers everything and is "punched through" using a mask */
+        #darkness {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            background: #000;
+            /* Solid black */
+            pointer-events: none;
+
+            /* The Mask: Punches a hole where the spotlight is */
+            -webkit-mask-image: radial-gradient(circle var(--radius, 0px) at var(--x, -9999px) var(--y, -9999px),
+                    transparent 0%,
+                    black 100%);
+            mask-image: radial-gradient(circle var(--radius, 0px) at var(--x, -9999px) var(--y, -9999px),
+                    transparent 0%,
+                    black 100%);
+        }
+
+        /* ===== VIGNETTE — deepens the edges ===== */
+        #vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            background: radial-gradient(ellipse 60% 55% at 50% 50%,
+                    transparent 0%,
+                    rgba(0, 0, 0, 0.4) 100%);
+            pointer-events: none;
+        }
+
+
+
+        /* ===== MAIN TITLE ===== */
+        h1 {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            color: #FFFFFF;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 8rem;
+            font-weight: 900;
+            letter-spacing: 12px;
+            text-transform: uppercase;
+            pointer-events: none;
+            margin: 0;
+            white-space: nowrap;
+            text-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="scene">
+        <!-- Color ellipses -->
+        <div class="ellipse-1"></div>
+        <div class="ellipse-2"></div>
+
+        <!-- Background layer -->
+        <div id="bg-layer"></div>
+
+        <!-- Subtle vignette -->
+        <div id="vignette"></div>
+
+        <!-- Darkness overlay with spotlight punch-through mask -->
+        <div id="darkness"></div>
+
+        <!-- Main centered branding -->
+        <h1>PricePoint</h1>
+
+
+    </div>
+
+    <script>
+        const darkness = document.getElementById('darkness');
+
+
+        // Spotlight config
+        const SPOTLIGHT_RADIUS = 200;       // px — visible circle size
+        const SMOOTH_FACTOR = 0.12;         // lower = smoother/laggier
+        const DEADZONE_WIDTH = 1439;        // px
+        const DEADZONE_HEIGHT = 651.185;    // px
+
+        let mouseX = -9999, mouseY = -9999;
+        let currentX = -9999, currentY = -9999;
+        let isMouseInside = false;
+
+
+
+        // Update target position on mouse move
+        window.addEventListener('mousemove', e => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+
+            if (!isMouseInside) {
+                isMouseInside = true;
+                currentX = mouseX;
+                currentY = mouseY;
+            }
+        });
+
+        window.addEventListener('mouseleave', () => {
+            isMouseInside = false;
+            darkness.style.setProperty('--x', '-9999px');
+            darkness.style.setProperty('--y', '-9999px');
+            darkness.style.setProperty('--radius', '0px');
+        });
+
+        // Smooth animation loop
+        function animate() {
+            if (isMouseInside) {
+                // Lerp toward target
+                currentX += (mouseX - currentX) * SMOOTH_FACTOR;
+                currentY += (mouseY - currentY) * SMOOTH_FACTOR;
+
+                // Calculate rectangular distance for deadzone
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const deadzoneW = DEADZONE_WIDTH / 2;
+                const deadzoneH = DEADZONE_HEIGHT / 2;
+
+                // Distance to rectangle edges (positive means outside)
+                const dx = Math.max(0, Math.abs(currentX - centerX) - deadzoneW);
+                const dy = Math.max(0, Math.abs(currentY - centerY) - deadzoneH);
+                const distToRect = Math.sqrt(dx * dx + dy * dy);
+
+                const transitionZone = 150; // px to fade in/out
+                let targetRadius = 0;
+
+                if (distToRect > transitionZone) {
+                    targetRadius = SPOTLIGHT_RADIUS;
+                } else if (distToRect > 0) {
+                    // Smoothly ramp up radius as we leave the center zone
+                    const factor = distToRect / transitionZone;
+                    targetRadius = SPOTLIGHT_RADIUS * factor;
+                } else {
+                    targetRadius = 0;
+                }
+
+                darkness.style.setProperty('--x', currentX + 'px');
+                darkness.style.setProperty('--y', currentY + 'px');
+                darkness.style.setProperty('--radius', targetRadius + 'px');
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,243 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* ============================================================
+   PricePoint v2.0 — Neumorphic Soft UI Design System
+   Hover / Shadow system inspired by princeyadav.netlify.app
+   ============================================================ */
+
+/* ---------- CSS Custom Properties ---------- */
+:root {
+  --bg-light: #E0E5EC;
+  --bg-dark: #2D3748;
+  --outer-shadow: 3px 3px 3px #d0d0d0, -3px -3px 3px #f8f8f8;
+  --outer-shadow-0: 0 0 0 #d0d0d0, 0 0 0 #f8f8f8;
+  --inner-shadow: inset 3px 3px 3px #d0d0d0, inset -3px -3px 3px #f8f8f8;
+  --inner-shadow-0: inset 0 0 0 #d0d0d0, inset 0 0 0 #f8f8f8;
+  /* Larger variants for cards */
+  --outer-shadow-lg: 6px 6px 10px #c8ccd4, -6px -6px 10px #ffffff;
+  --outer-shadow-lg-0: 0 0 0 #c8ccd4, 0 0 0 #ffffff;
+  --inner-shadow-lg: inset 6px 6px 10px #c8ccd4, inset -6px -6px 10px #ffffff;
+}
+
+.dark {
+  --outer-shadow: 3px 3px 5px rgba(0, 0, 0, 0.4), -3px -3px 5px rgba(60, 60, 60, 0.25);
+  --outer-shadow-0: 0 0 0 rgba(0, 0, 0, 0), 0 0 0 rgba(60, 60, 60, 0);
+  --inner-shadow: inset 3px 3px 5px rgba(0, 0, 0, 0.4), inset -3px -3px 5px rgba(60, 60, 60, 0.25);
+  --inner-shadow-0: inset 0 0 0 rgba(0, 0, 0, 0), inset 0 0 0 rgba(60, 60, 60, 0);
+  --outer-shadow-lg: 6px 6px 12px rgba(0, 0, 0, 0.5), -6px -6px 12px rgba(60, 60, 60, 0.2);
+  --outer-shadow-lg-0: 0 0 0 rgba(0, 0, 0, 0), 0 0 0 rgba(60, 60, 60, 0);
+  --inner-shadow-lg: inset 6px 6px 12px rgba(0, 0, 0, 0.5), inset -6px -6px 12px rgba(60, 60, 60, 0.2);
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    @apply bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark antialiased;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(163, 177, 198, 0.6) transparent;
+  }
+}
+
+/* ============================================================
+   CORE EFFECT: hover-in-shadow
+   Exact same pattern as the portfolio site.
+   Normal: outer shadow visible.
+   Hover: outer shadow fades to 0 → inner shadow appears via ::after.
+   This creates the signature "press-in" neumorphic effect.
+   ============================================================ */
+
+.outer-shadow {
+  box-shadow: var(--outer-shadow);
+}
+
+.inner-shadow {
+  box-shadow: var(--inner-shadow);
+}
+
+.outer-shadow-lg {
+  box-shadow: var(--outer-shadow-lg);
+}
+
+/* —— Small interactive elements (buttons, icons) —— */
+.hover-in-shadow {
+  box-shadow: var(--outer-shadow);
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.hover-in-shadow::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  z-index: -1;
+  box-shadow: var(--inner-shadow-0);
+  transition: all 0.3s ease;
+}
+
+.hover-in-shadow:hover {
+  box-shadow: var(--outer-shadow-0);
+}
+
+.hover-in-shadow:hover::after {
+  box-shadow: var(--inner-shadow);
+}
+
+/* —— Large interactive elements (cards) —— */
+.hover-in-shadow-lg {
+  box-shadow: var(--outer-shadow-lg);
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.hover-in-shadow-lg::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  z-index: -1;
+  box-shadow: var(--inner-shadow-0);
+  transition: all 0.3s ease;
+}
+
+.hover-in-shadow-lg:hover {
+  box-shadow: var(--outer-shadow-lg-0);
+}
+
+.hover-in-shadow-lg:hover::after {
+  box-shadow: var(--inner-shadow-lg);
+}
+
+/* —— Active/Selected State: stays "pressed" —— */
+.active-pressed {
+  box-shadow: var(--inner-shadow) !important;
+}
+
+.active-pressed::after {
+  box-shadow: var(--inner-shadow-0) !important;
+}
+
+/* ---------- Connector Lines & Arrows ---------- */
+.connector-line {
+  position: absolute;
+  height: 2px;
+  background-image: linear-gradient(to right, #A0AEC0 50%, rgba(255, 255, 255, 0) 0%);
+  background-position: bottom;
+  background-size: 10px 1px;
+  background-repeat: repeat-x;
+  z-index: 0;
+}
+
+.connector-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 8px solid #A0AEC0;
+  z-index: 10;
+}
+
+.transition-theme {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* ---------- Keyframe Animations ---------- */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(184, 134, 11, 0.6);
+  }
+
+  70% {
+    box-shadow: 0 0 0 14px rgba(184, 134, 11, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(184, 134, 11, 0);
+  }
+}
+
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes simple-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- React Flow Overrides ---------- */
+.react-flow__background {
+  background-color: #E0E5EC !important;
+}
+
+.dark .react-flow__background {
+  background-color: #2D3748 !important;
+}
+
+.react-flow__controls,
+.react-flow__minimap,
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* ---------- Utility Classes ---------- */
+@layer utilities {
+  .animate-pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.6s ease-out forwards;
+  }
+}
