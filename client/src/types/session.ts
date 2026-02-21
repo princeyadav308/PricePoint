@@ -11,7 +11,15 @@ export type ProductType = 'physical' | 'service' | 'digital';
 /** Stages in the questionnaire flow */
 export type SessionStage =
     | 'journey_selection'
+    | 'journey_root'
     | 'product_classification'
+    | 'product_description'
+    | 'stage_2a_physical'
+    | 'stage_2b_service'
+    | 'stage_2c_digital'
+    | 'unit_economics_physical'
+    | 'unit_economics_service'
+    | 'unit_economics_digital'
     | 'market_research'
     | 'product_value'
     | 'financials'

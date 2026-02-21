@@ -10,7 +10,7 @@ import {
 import type { JourneyType } from '../types/session';
 import type { StageConfig } from '../data/questions.config';
 import { getLayoutedElements } from '../utils/useAutoLayout';
-import { STAGE_1_QUESTIONS, VAN_WESTENDORP_QUESTIONS } from '../data/questions.config';
+import { JOURNEY_A_ROOT, JOURNEY_B_ROOT, VAN_WESTENDORP_QUESTIONS } from '../data/questions.config';
 import { useSessionStore } from './useSessionStore';
 import { calculatePrice, PricingResult } from '../utils/pricingEngine';
 
@@ -134,31 +134,37 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
         set({ isExpanded: true, nodes: updatedNodes, selectedJourney: type });
     },
 
-    // ── expandJourney — spawns Product Classification (stage-1) ──
+    // ── expandJourney — spawns Journey Root Questions ────────
     expandJourney: (parentId: string) => {
         const { nodes, edges } = get();
 
-        if (nodes.some((n) => n.id === 'stage-1')) return;
+        // Determine journey type from the clicked node
+        const journeyType: JourneyType = parentId === 'journey-a' ? 'established_seller' : 'new_launcher';
+
+        // Pick the correct root questions config
+        const rootConfig = journeyType === 'established_seller' ? JOURNEY_A_ROOT : JOURNEY_B_ROOT;
+        const newNodeId = `stage-${rootConfig.id}`;
+
+        if (nodes.some((n) => n.id === newNodeId)) return;
 
         const newNode: Node = {
-            id: 'stage-1',
+            id: newNodeId,
             type: 'classificationNode',
             position: { x: 0, y: 0 },
-            data: { config: STAGE_1_QUESTIONS, label: 'Product Classification' },
+            data: { config: rootConfig, label: rootConfig.title },
         };
 
         const newEdge: Edge = {
-            id: `e-${parentId}-stage-1`,
+            id: `e-${parentId}-${newNodeId}`,
             source: parentId,
             sourceHandle: 'right',
-            target: 'stage-1',
+            target: newNodeId,
             targetHandle: 'left',
             type: 'animatedEdge',
             data: { color: 'navy' },
         };
 
         const dimmedId = parentId === 'journey-a' ? 'journey-b' : 'journey-a';
-        const journeyType: JourneyType = parentId === 'journey-a' ? 'established_seller' : 'new_launcher';
 
         const updatedNodes = nodes.map((node) => {
             if (node.id === parentId) {
@@ -193,7 +199,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
             edges: layoutedEdges,
             selectedJourney: journeyType,
             isExpanded: true,
-            lastAddedNodeId: 'stage-1',
+            lastAddedNodeId: newNodeId,
         });
     },
 

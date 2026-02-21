@@ -57,85 +57,61 @@ const MindMapInner = () => {
         }
     }, [lastAddedNodeId, fitView]);
 
-    // ── Master Lock: show FAB when all 3 branches complete ───
+    // ── Master Lock: auto-spawn VW when all 3 branches complete ─
     const allBranchesComplete = useMemo(() =>
         REQUIRED_BRANCHES.every((id) => completedStages.includes(id)),
         [completedStages]
     );
     const convergenceExists = nodes.some((n) => n.id === 'stage-van_westendorp');
-    const showFAB = allBranchesComplete && !convergenceExists;
 
-    const handleConvergenceClick = () => {
-        spawnConvergence();
-        setTimeout(() => {
-            fitView({
-                nodes: [{ id: 'stage-van_westendorp' }],
-                duration: 800,
-                padding: 0.4,
-                maxZoom: 0.8,
-            });
-        }, 300);
-    };
+    // Auto-spawn convergence node when all branches are done
+    useEffect(() => {
+        if (allBranchesComplete && !convergenceExists) {
+            spawnConvergence();
+            setTimeout(() => {
+                fitView({
+                    nodes: [{ id: 'stage-van_westendorp' }],
+                    duration: 800,
+                    padding: 0.4,
+                    maxZoom: 0.8,
+                });
+            }, 300);
+        }
+    }, [allBranchesComplete, convergenceExists, spawnConvergence, fitView]);
 
     return (
-        <>
-            <ReactFlow
-                nodes={nodes}
-                edges={safeEdges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                fitView
-                fitViewOptions={{ padding: 0.4, maxZoom: 0.7 }}
-                minZoom={0.5}
-                maxZoom={1.5}
-                defaultEdgeOptions={{ type: 'animatedEdge' }}
-                nodesDraggable={false}
-                nodesConnectable={false}
-                elementsSelectable={true}
-                panOnDrag={[1]}
-                panOnScroll={true}
-                zoomOnScroll={true}
-                className="!bg-background-light dark:!bg-background-dark"
-                onInit={(instance) => {
-                    setTimeout(() => {
-                        instance.fitView({
-                            nodes: [{ id: 'root' }, { id: 'journey-a' }, { id: 'journey-b' }],
-                            padding: 0.4,
-                            maxZoom: 0.7,
-                            duration: 600,
-                        });
-                    }, 100);
-                }}
-            >
-                <Background color="#CBD5E1" gap={24} size={1} />
-            </ReactFlow>
-
-            {/* ── Floating "Calculate Pricing Intelligence" CTA ── */}
-            {showFAB && (
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 animate-fade-up">
-                    <button
-                        onClick={handleConvergenceClick}
-                        className="
-                            px-8 py-4 rounded-full
-                            bg-primary hover:bg-primary-dark
-                            text-white font-bold text-base
-                            outer-shadow-lg
-                            transition-all duration-300
-                            active:scale-95
-                            flex items-center gap-3
-                            animate-pulse-ring
-                        "
-                    >
-                        <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-sm">
-                            ✧
-                        </span>
-                        Calculate Pricing Intelligence
-                    </button>
-                </div>
-            )}
-        </>
+        <ReactFlow
+            nodes={nodes}
+            edges={safeEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            fitViewOptions={{ padding: 0.4, maxZoom: 0.7 }}
+            minZoom={0.5}
+            maxZoom={1.5}
+            defaultEdgeOptions={{ type: 'animatedEdge' }}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={true}
+            panOnDrag={[1]}
+            panOnScroll={true}
+            zoomOnScroll={true}
+            className="!bg-background-light dark:!bg-background-dark"
+            onInit={(instance) => {
+                setTimeout(() => {
+                    instance.fitView({
+                        nodes: [{ id: 'root' }, { id: 'journey-a' }, { id: 'journey-b' }],
+                        padding: 0.4,
+                        maxZoom: 0.7,
+                        duration: 600,
+                    });
+                }, 100);
+            }}
+        >
+            <Background color="#CBD5E1" gap={24} size={1} />
+        </ReactFlow>
     );
 };
 
