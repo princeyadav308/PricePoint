@@ -27,8 +27,8 @@ export type SessionStage =
     | 'product_deep_dive'
     | 'market_intelligence'
     | 'business_goals'
-    | 'distribution_legal'
-    | 'psychological_pricing'
+    | 'distribution'
+    | 'psychological'
     | 'results'
     | 'report_preview';
 
@@ -58,10 +58,15 @@ export interface JourneyBContext {
     pricing_fear: 'too_high' | 'too_low_cheap' | 'start_low_raise' | 'start_high_discount' | 'no_preference' | null;
 }
 
+// ----- Market Intelligence Types -----
+export type CompetitorCount = '0' | '1-3' | '4+';
+
 // ----- Answer Record -----
 export interface AnswerRecord {
     questionId: string;
-    value: unknown;
+    value: unknown; // Core schema value
+    competitorCount?: CompetitorCount; // Strictly typed market input
+    competitorPrice?: number;          // Strictly typed market input
     timestamp: number;
 }
 
@@ -75,6 +80,7 @@ export interface SessionData {
     journeyAContext: JourneyAContext;
     journeyBContext: JourneyBContext;
     completedStages: SessionStage[];
+    isUnlocked: boolean;
     createdAt: number | null;
     updatedAt: number | null;
 }

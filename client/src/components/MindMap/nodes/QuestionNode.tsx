@@ -33,7 +33,7 @@ const ICON_MAP: Record<string, any> = {
 const NA_VALUE = '__NA__';
 
 // Branch IDs that must all complete before convergence spawns
-const CONVERGENCE_BRANCHES: SessionStage[] = ['market_research', 'product_value', 'financials'];
+const CONVERGENCE_BRANCHES: SessionStage[] = ['market_research', 'distribution', 'psychological'];
 
 // ── Help Tip (lightbulb toggle) ──────────────────────────────
 const HelpTip = ({
@@ -462,8 +462,18 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
         return val !== undefined && val !== null && String(val).trim() !== '';
     });
 
+    const hasValidationErrors = config.fields.some((field) => {
+        if (naFields.has(field.id)) return false;
+        if (field.validate && formState[field.id] !== undefined) {
+            return field.validate(formState[field.id], formState) !== null;
+        }
+        return false;
+    });
+
+    const canProceed = allFieldsFilled && !hasValidationErrors;
+
     const handleNext = useCallback(() => {
-        if (!allFieldsFilled || submitted) return;
+        if (!canProceed || submitted) return;
 
         // Save answers
         config.fields.forEach((field) => {
@@ -544,7 +554,7 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
             }, 100);
         }
     }, [
-        allFieldsFilled, submitted, config, formState, id, sessionAnswers,
+        canProceed, submitted, config, formState, id, sessionAnswers,
         addAnswer, completeStage, submitStage, spawnBranches, spawnResult, spawnConvergence, fitView,
     ]);
 
@@ -720,6 +730,14 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
                             )}
 
                             {renderField(field)}
+
+                            {/* Error text */}
+                            {!naFields.has(field.id) && field.validate && formState[field.id] !== undefined && field.validate(formState[field.id], formState) && (
+                                <div className="text-[11px] font-medium text-red-500 flex items-center gap-1.5 mt-0.5 px-1 animate-in slide-in-from-top-1 fade-in duration-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                    {field.validate(formState[field.id], formState)}
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -736,8 +754,8 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
                     ) : (
                         <button
                             onClick={handleNext}
-                            disabled={!allFieldsFilled}
-                            className={`px-6 py-2.5 rounded-full transition-all flex items-center gap-2 font-medium text-sm active:scale-95 ${allFieldsFilled
+                            disabled={!canProceed}
+                            className={`px-6 py-2.5 rounded-full transition-all flex items-center gap-2 font-medium text-sm active:scale-95 ${canProceed
                                 ? 'bg-primary hover:bg-primary-dark text-white outer-shadow cursor-pointer'
                                 : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                                 }`}

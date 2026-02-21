@@ -97,7 +97,7 @@ const rawEdges: Edge[] = [
 const { nodes: initialNodes, edges: initialEdges } = getLayoutedElements(rawNodes, rawEdges);
 
 // ── Branch IDs for convergence detection ─────────────────────
-const BRANCH_IDS = ['stage-market_research', 'stage-product_value', 'stage-financials'];
+
 
 // ============================================================
 // Store
@@ -287,7 +287,8 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
 
         if (nodes.some((n) => n.id === 'stage-van_westendorp')) return;
 
-        const branchNodes = nodes.filter((n) => BRANCH_IDS.includes(n.id));
+        const terminalIds = ['stage-market_research', 'stage-distribution', 'stage-psychological'];
+        const branchNodes = nodes.filter((n) => terminalIds.includes(n.id));
         if (branchNodes.length === 0) return;
 
         const maxX = Math.max(...branchNodes.map((n) => n.position.x + 400));
@@ -301,7 +302,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
             data: { config: VAN_WESTENDORP_QUESTIONS, label: 'Price Sensitivity' },
         };
 
-        // Connect from all 3 branches with gold edges
+        // Connect from the 3 terminal branches with gold edges
         const newEdges: Edge[] = branchNodes.map((bn) => ({
             id: `e-${bn.id}-convergence`,
             source: bn.id,
@@ -348,8 +349,8 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
             sourceHandle: 'right',
             target: 'result-trinity',
             targetHandle: 'left',
-            type: 'animatedEdge',
-            data: { color: 'gold' },
+            type: 'smoothstep',
+            style: { stroke: '#DFA81C', strokeWidth: 2 },
         };
 
         set({

@@ -12,7 +12,7 @@ const NODE_DIMS: Record<string, { width: number; height: number }> = {
     rootNode: { width: 200, height: 200 },
     journeyNode: { width: 320, height: 180 },
     classificationNode: { width: 400, height: 520 },
-    resultNode: { width: 700, height: 420 },
+    resultNode: { width: 850, height: 600 },
     stageNode: { width: 224, height: 64 },
 };
 

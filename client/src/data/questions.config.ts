@@ -19,6 +19,8 @@ export interface QuestionField {
     defaultRows?: UnitEconomicsRow[];   // for unit-economics type
     helpText?: string;                  // explanation shown on lightbulb toggle
     allowCustom?: boolean;              // allow user to add custom options (multi-select)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    validate?: (value: any, allBranchValues: Record<string, any>) => string | null;
 }
 
 export interface StageConfig {
@@ -375,6 +377,11 @@ export const UNIT_ECONOMICS_PHYSICAL: StageConfig = {
                 { id: 'insurance', label: 'Insurance (per unit)', placeholder: 'e.g. 0.30' },
                 { id: 'licensing', label: 'Licensing / Compliance', placeholder: 'e.g. 0.20' },
             ],
+            validate: (val: any[]) => {
+                const total = val ? val.reduce((sum, r) => sum + (parseFloat(r.value) || 0), 0) : 0;
+                if (total <= 0) return 'Total COGS must be strictly greater than 0.';
+                return null;
+            },
         },
     ],
 };
@@ -405,6 +412,11 @@ export const UNIT_ECONOMICS_SERVICE: StageConfig = {
                 { id: 'admin', label: 'Admin / Bookkeeping', placeholder: 'e.g. 100' },
                 { id: 'bad_debt', label: 'Bad Debt Provision', placeholder: 'e.g. 50' },
             ],
+            validate: (val: any[]) => {
+                const total = val ? val.reduce((sum, r) => sum + (parseFloat(r.value) || 0), 0) : 0;
+                if (total <= 0) return 'Total COGS must be strictly greater than 0.';
+                return null;
+            },
         },
     ],
 };
@@ -435,6 +447,11 @@ export const UNIT_ECONOMICS_DIGITAL: StageConfig = {
                 { id: 'security', label: 'Security / Compliance', placeholder: 'e.g. 30' },
                 { id: 'dev_amortized', label: 'Development (amortized monthly)', placeholder: 'e.g. 500' },
             ],
+            validate: (val: any[]) => {
+                const total = val ? val.reduce((sum, r) => sum + (parseFloat(r.value) || 0), 0) : 0;
+                if (total <= 0) return 'Total COGS must be strictly greater than 0.';
+                return null;
+            },
         },
     ],
 };
@@ -467,12 +484,28 @@ export const BRANCH_MARKET_RESEARCH: StageConfig = {
             type: 'number',
             label: 'Lowest competitor price you\'ve found',
             placeholder: 'e.g. 15.00',
+            validate: (val, form) => {
+                const min = Number(val);
+                const max = Number(form['competitor_price_high']);
+                if (form['competitor_price_high'] !== undefined && min >= max) {
+                    return 'Lowest price must be strictly less than the highest price.';
+                }
+                return null;
+            }
         },
         {
             id: 'competitor_price_high',
             type: 'number',
             label: 'Highest competitor price you\'ve found',
             placeholder: 'e.g. 120.00',
+            validate: (val, form) => {
+                const max = Number(val);
+                const min = Number(form['competitor_price_low']);
+                if (form['competitor_price_low'] !== undefined && max <= min) {
+                    return 'Highest price must be strictly greater than the lowest price.';
+                }
+                return null;
+            }
         },
         {
             id: 'target_customer',
@@ -497,6 +530,7 @@ export const BRANCH_PRODUCT_VALUE: StageConfig = {
     title: 'Product Value',
     icon: 'Gem',
     scrollable: true,
+    nextStageId: 'psychological',
     fields: [
         {
             id: 'feature_importance',
@@ -547,12 +581,18 @@ export const BRANCH_FINANCIALS: StageConfig = {
     title: 'Financials',
     icon: 'Calculator',
     scrollable: true,
+    nextStageId: 'distribution',
     fields: [
         {
             id: 'desired_margin',
             type: 'slider',
             label: 'Desired Profit Margin',
             min: 5, max: 90, step: 5, unit: '%',
+            validate: (val) => {
+                const m = Number(val);
+                if (m < 1 || m > 100) return 'Margin must be between 1% and 100%.';
+                return null;
+            }
         },
         {
             id: 'tax_rate',
@@ -586,6 +626,89 @@ export const BRANCH_FINANCIALS: StageConfig = {
             helpText: 'Break-even = the point where your total revenue equals your total costs (you stop losing money). A shorter break-even timeline means you need higher prices or higher volume from day one.',
             options: ['Already profitable', 'Within 3 months', '3–6 months', '6–12 months', '1–2 years', 'Not a concern right now'],
         },
+        {
+            id: 'existing_demand_status',
+            type: 'mcq',
+            label: 'What is the current demand status for this product?',
+            options: ['Testing the waters (no clear demand yet)', 'Generating steady interest', 'Fulfilling existing/proven demand'],
+        },
+        {
+            id: 'promotional_intent',
+            type: 'slider',
+            label: 'Estimated percentage of sales via discounts/promotions',
+            min: 0, max: 100, step: 5, unit: '%',
+        },
+        {
+            id: 'primary_business_goal',
+            type: 'mcq',
+            label: 'What is your primary goal for this product right now?',
+            options: ['Survival (cover costs, stay alive)', 'Growth (maximize volume/market share)', 'Profit (maximize margin per unit)', 'Prestige (limit testing, brand building)'],
+        },
+    ],
+};
+
+// ── Distribution & Legal ──────────────────────────────────────
+export const STAGE_5_DISTRIBUTION: StageConfig = {
+    id: 'distribution',
+    title: 'Distribution & Legal',
+    icon: 'Truck',
+    scrollable: true,
+    fields: [
+        {
+            id: 'vat_gst_obligation',
+            type: 'mcq',
+            label: 'Does your price need to be inclusive or exclusive of local sales tax (VAT/GST)?',
+            options: ['Inclusive (Consumer standard)', 'Exclusive (B2B standard)', 'Not applicable / Exempt'],
+        },
+        {
+            id: 'international_tax',
+            type: 'mcq',
+            label: 'Will you absorb cross-border fees and international taxes?',
+            options: ['Yes, absorb into price', 'No, passed on to customer', 'Only selling domestically'],
+        },
+        {
+            id: 'wholesale_margin',
+            type: 'slider',
+            label: 'Required Wholesale / Reseller Margin',
+            helpText: 'If you plan to sell through retailers or wholesalers eventually, you need to build their margin (typically 30-50%) into your retail price now.',
+            min: 0, max: 70, step: 5, unit: '%',
+        },
+        {
+            id: 'payment_collection_cycle',
+            type: 'mcq',
+            label: 'What is your typical payment collection cycle?',
+            options: ['Paid upfront (100% at checkout)', 'Subscription / Recurring', 'Term payments (Net-15 / Net-30)', 'Milestone-based (50% upfront, 50% completion)'],
+        },
+    ],
+};
+
+// ── Psychological Pricing ─────────────────────────────────────
+export const STAGE_6_PSYCHOLOGICAL: StageConfig = {
+    id: 'psychological',
+    title: 'Psychological Pricing',
+    icon: 'BrainCircuit',
+    scrollable: true,
+    fields: [
+        {
+            id: 'presentation_style',
+            type: 'mcq',
+            label: 'Preferred Pricing Presentation Style',
+            helpText: 'Charm pricing ($49.99) signals value and is common in consumer goods. Prestige pricing ($50.00) signals luxury and quality.',
+            options: ['Charm Pricing (e.g. .99 or .95)', 'Prestige Pricing (Flat rounding e.g. .00)', 'Exact/Calculated (no rounding up/down)', 'No preference'],
+        },
+        {
+            id: 'tiering_strategy',
+            type: 'mcq',
+            label: 'Planned Tiering Strategy',
+            options: ['Single Price (Take it or leave it)', 'Good / Better / Best (3 tiers)', 'Base + Modular Add-ons', 'Pay-as-you-go / Usage-based'],
+        },
+        {
+            id: 'hard_market_constraints',
+            type: 'mcq',
+            label: 'Are there any hard market constraints or price ceilings?',
+            helpText: 'For example, if your app targets teenagers, an absolute hard ceiling might be $9.99/mo regardless of the value provided.',
+            options: ['No hard ceiling', 'Yes, a specific psychological barrier exists', 'Yes, a strict competitor price cap exists'],
+        },
     ],
 };
 
@@ -602,6 +725,7 @@ export const VAN_WESTENDORP_QUESTIONS: StageConfig = {
             label: 'At what price would you question this product\'s quality?',
             helpText: 'Think as a buyer: at what low price would you think "something must be wrong with this"? Example: A $5 leather wallet would raise quality concerns.',
             min: 1, max: 999, step: 1, unit: '$',
+            validate: (val, form) => (form.bargain !== undefined && Number(val) >= Number(form.bargain)) ? 'Must be strictly less than Bargain price.' : null,
         },
         {
             id: 'bargain',
@@ -609,6 +733,11 @@ export const VAN_WESTENDORP_QUESTIONS: StageConfig = {
             label: 'At what price is this product a great bargain?',
             helpText: 'The price where a customer would think "that\'s a great deal!" — low enough to feel like a steal, but high enough to trust the quality.',
             min: 1, max: 999, step: 1, unit: '$',
+            validate: (val, form) => {
+                if (form.too_cheap !== undefined && Number(val) <= Number(form.too_cheap)) return 'Must be strictly greater than Too Cheap.';
+                if (form.getting_expensive !== undefined && Number(val) >= Number(form.getting_expensive)) return 'Must be strictly less than Getting Expensive.';
+                return null;
+            }
         },
         {
             id: 'getting_expensive',
@@ -616,6 +745,11 @@ export const VAN_WESTENDORP_QUESTIONS: StageConfig = {
             label: 'At what price does this product start getting expensive?',
             helpText: 'The price where the buyer pauses and thinks "hmm, that\'s getting pricey" — they might still buy, but they\'d need convincing.',
             min: 1, max: 999, step: 1, unit: '$',
+            validate: (val, form) => {
+                if (form.bargain !== undefined && Number(val) <= Number(form.bargain)) return 'Must be strictly greater than Bargain price.';
+                if (form.too_expensive !== undefined && Number(val) >= Number(form.too_expensive)) return 'Must be strictly less than Too Expensive.';
+                return null;
+            }
         },
         {
             id: 'too_expensive',
@@ -623,6 +757,7 @@ export const VAN_WESTENDORP_QUESTIONS: StageConfig = {
             label: 'At what price is this product too expensive to consider?',
             helpText: 'The price where the buyer says "absolutely not" — no amount of features or quality would justify this price. This sets the ceiling for your pricing range.',
             min: 1, max: 999, step: 1, unit: '$',
+            validate: (val, form) => (form.getting_expensive !== undefined && Number(val) <= Number(form.getting_expensive)) ? 'Must be strictly greater than Getting Expensive.' : null,
         },
     ],
 };
@@ -651,6 +786,8 @@ export const STAGE_MAP: Record<string, StageConfig> = {
     market_research: BRANCH_MARKET_RESEARCH,
     product_value: BRANCH_PRODUCT_VALUE,
     financials: BRANCH_FINANCIALS,
+    distribution: STAGE_5_DISTRIBUTION,
+    psychological: STAGE_6_PSYCHOLOGICAL,
 
     // Convergence
     van_westendorp: VAN_WESTENDORP_QUESTIONS,

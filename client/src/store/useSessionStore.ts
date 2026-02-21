@@ -19,6 +19,7 @@ interface SessionActions {
     addAnswer: (questionId: string, value: unknown) => void;
     setCurrentStage: (stage: SessionStage) => void;
     completeStage: (stage: SessionStage) => void;
+    unlockQuote: (email: string) => void;
     resetSession: () => void;
 }
 
@@ -33,6 +34,7 @@ const initialState: SessionData = {
     journeyAContext: { ...defaultJourneyAContext },
     journeyBContext: { ...defaultJourneyBContext },
     completedStages: [],
+    isUnlocked: false,
     createdAt: null,
     updatedAt: null,
 };
@@ -79,6 +81,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
                 updatedAt: Date.now(),
             });
         }
+    },
+
+    unlockQuote: (_email) => {
+        set({
+            isUnlocked: true,
+            updatedAt: Date.now(),
+        });
     },
 
     resetSession: () => set({ ...initialState }),
