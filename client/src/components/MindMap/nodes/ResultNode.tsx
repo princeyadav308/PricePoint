@@ -6,6 +6,7 @@ import { useSessionStore } from '../../../store/useSessionStore';
 import { generateChartUrls } from '../../../utils/charts';
 import { PricingReportPDF } from '../../PricingReportPDF';
 import { PDFDownloadLink } from '@react-pdf/renderer';
+import { AuthModal } from '../../AuthModal';
 
 // ============================================================
 // ResultNode — Trinity Price Quote (Phase 3)
@@ -21,11 +22,13 @@ interface ResultNodeData {
 export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
     const { result } = data;
     const [showModal, setShowModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
     const [emailInput, setEmailInput] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [reportPayload, setReportPayload] = useState<{ claudeData: any; chartUrls: any; documentId: string } | null>(null);
 
     const isUnlocked = useSessionStore((s) => s.isUnlocked);
+    const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
     const unlockQuote = useSessionStore((s) => s.unlockQuote);
 
     // Get currency from session (fallback to $)
@@ -33,9 +36,17 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
 
     // Handle unlocking
     const handleUnlock = () => {
-        if (emailInput.trim() && emailInput.includes('@')) {
-            unlockQuote(emailInput.trim());
+        if (!isAuthenticated) {
+            setShowAuthModal(true);
+            return;
         }
+
+        // Trigger Stripe Checkout or Dodo Payments Mock
+        // const res = await fetch('http://localhost:3000/api/checkout', { method: 'POST', ... })
+        // window.location.href = res.url;
+
+        // For now, unlock directly
+        unlockQuote(emailInput.trim() || useSessionStore.getState().user?.email || 'user@example.com');
     };
 
     const handleGenerateReport = async () => {
@@ -158,11 +169,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                                 </div>
                                 <button
                                     onClick={handleUnlock}
-                                    disabled={!emailInput.includes('@')}
-                                    className={`w-full py-4 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 ${emailInput.includes('@')
-                                        ? 'bg-primary hover:bg-primary-dark text-white outer-shadow active:scale-95 cursor-pointer'
-                                        : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                                        }`}
+                                    className={`w-full py-4 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white outer-shadow active:scale-95 cursor-pointer`}
                                 >
                                     Reveal Intelligence
                                     <TrendingUp size={16} />
@@ -324,6 +331,16 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                     </div>
                 </div>
             )}
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                onSuccess={() => {
+                    setShowAuthModal(false);
+                    // Automatically trigger the unlock/payment flow once authenticated
+                    handleUnlock();
+                }}
+            />
 
             <Handle
                 type="source"

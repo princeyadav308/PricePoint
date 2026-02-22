@@ -83,6 +83,8 @@ export interface SessionData {
     isUnlocked: boolean;
     createdAt: number | null;
     updatedAt: number | null;
+    user: any | null;
+    isAuthenticated: boolean;
 }
 
 // ----- Default Contexts -----

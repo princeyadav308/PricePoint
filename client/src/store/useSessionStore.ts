@@ -21,6 +21,11 @@ interface SessionActions {
     completeStage: (stage: SessionStage) => void;
     unlockQuote: (email: string) => void;
     resetSession: () => void;
+
+    // Auth
+    user: any | null; // Using `any` for simplicity or could import `User` from @supabase/supabase-js
+    isAuthenticated: boolean;
+    setUser: (user: any | null) => void;
 }
 
 type SessionStore = SessionData & SessionActions;
@@ -37,6 +42,8 @@ const initialState: SessionData = {
     isUnlocked: false,
     createdAt: null,
     updatedAt: null,
+    user: null,
+    isAuthenticated: false,
 };
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -91,4 +98,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     },
 
     resetSession: () => set({ ...initialState }),
+
+    setUser: (user) =>
+        set({
+            user,
+            isAuthenticated: !!user,
+            updatedAt: Date.now(),
+        }),
 }));
