@@ -50,11 +50,9 @@ const Header: React.FC<HeaderProps> = ({ isDark, toggleDarkMode }) => {
                     {/* Auth Controls */}
                     {isAuthenticated ? (
                         <div className="flex items-center gap-2 outer-shadow rounded-xl bg-background-light dark:bg-background-dark border border-gray-100 dark:border-gray-700/30 p-1">
-                            <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-lg text-primary truncate max-w-[150px] md:max-w-[250px]">
-                                <User size={14} className="shrink-0" />
-                                <span className="text-sm font-bold truncate">
-                                    {user?.user_metadata?.full_name || user?.email}
-                                </span>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-lg text-primary truncate max-w-[120px] md:max-w-[200px]">
+                                <User size={14} />
+                                <span className="text-xs font-bold truncate">{user?.email}</span>
                             </div>
                             <button
                                 onClick={handleSignOut}

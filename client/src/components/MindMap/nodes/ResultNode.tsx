@@ -3,9 +3,6 @@ import { Handle, Position, NodeProps } from 'reactflow';
 import { Crown, TrendingUp, Zap, FileText, X, Lock, Mail } from 'lucide-react';
 import type { PricingResult } from '../../../utils/pricingEngine';
 import { useSessionStore } from '../../../store/useSessionStore';
-import { generateChartUrls } from '../../../utils/charts';
-import { PricingReportPDF } from '../../PricingReportPDF';
-import { PDFDownloadLink } from '@react-pdf/renderer';
 import { AuthModal } from '../../AuthModal';
 
 // ============================================================
@@ -25,7 +22,6 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [emailInput, setEmailInput] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [reportPayload, setReportPayload] = useState<{ claudeData: any; chartUrls: any; documentId: string } | null>(null);
 
     const isUnlocked = useSessionStore((s) => s.isUnlocked);
     const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
@@ -49,51 +45,44 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
         unlockQuote(emailInput.trim() || useSessionStore.getState().user?.email || 'user@example.com');
     };
 
-    const handleGenerateReport = async () => {
+    const handleCheckout = async (tier: 'Basic' | 'Professional' | 'Investor') => {
         setIsGenerating(true);
         try {
-            // Usually we do the Stripe Checkout redirect here:
-            // const res = await fetch('http://localhost:3000/api/checkout', { method: 'POST', ... })
-            // window.location.href = res.url;
-            // 
-            // For now, immediately generate the report via Mock Auth
             const fullSessionData = useSessionStore.getState();
-            const payload = {
-                sessionData: fullSessionData,
-                pricingResult: result,
-                appliedModifiers: result.appliedModifiers,
-            };
 
-            const response = await fetch('http://localhost:3000/api/generate-report', {
+            // 1. Initialize DB Record
+            const initRes = await fetch('http://127.0.0.1:3000/api/reports/initialize', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    sessionData: fullSessionData,
+                    pricingResult: data.result,  // Send the calculated numbers!
+                    tier: tier
+                })
             });
 
-            if (!response.ok) throw new Error('Failed to generate report');
+            if (!initRes.ok) throw new Error('Failed to initialize report');
+            const { documentId } = await initRes.json();
 
-            const data = await response.json();
-            const charts = generateChartUrls(fullSessionData, result);
-
-            setReportPayload({
-                claudeData: data.claudeData,
-                chartUrls: charts,
-                documentId: `PP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+            // 2. Generate Dodo Checkout URL
+            const checkoutRes = await fetch('http://127.0.0.1:3000/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    documentId,
+                    returnUrl: `${window.location.origin}/success?documentId=${documentId}`
+                })
             });
+
+            if (!checkoutRes.ok) throw new Error('Failed to generate checkout link');
+            const { url } = await checkoutRes.json();
+
+            // 3. Redirect to Dodo hosted checkout
+            window.location.href = url;
+
         } catch (error) {
-            console.error('Error generating report:', error);
-            // Fallback for UI if backend is not running
-            const fullSessionData = useSessionStore.getState();
-            const charts = generateChartUrls(fullSessionData, result);
-            setReportPayload({
-                claudeData: {
-                    executiveSummary: "Pending backend connection...",
-                    marketJustification: "Pending backend connection...",
-                    defensibility: "Pending backend connection..."
-                },
-                chartUrls: charts,
-                documentId: `PP-MOCK-DEV`
-            });
+            console.error('Checkout error:', error);
+            alert("Error connecting to payment provider. Please try again or check your backend.");
         } finally {
             setIsGenerating(false);
         }
@@ -149,24 +138,26 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                                 Your Custom Quote is Ready
                             </h4>
                             <p className="text-sm text-slate-500 max-w-md mb-8 leading-relaxed">
-                                We've finished analyzing your unit economics, brand value, and market conditions. Enter your email to reveal your Trinity Quote and download your report.
+                                We've finished analyzing your unit economics, brand value, and market conditions. {isAuthenticated ? 'Click below to reveal your Trinity Quote and download your report.' : 'Enter your email to reveal your Trinity Quote and download your report.'}
                             </p>
 
                             <div className="w-full max-w-sm space-y-4">
-                                <div className="relative flex items-center">
-                                    <div className="absolute left-4 text-slate-400">
-                                        <Mail size={18} />
+                                {!isAuthenticated && (
+                                    <div className="relative flex items-center">
+                                        <div className="absolute left-4 text-slate-400">
+                                            <Mail size={18} />
+                                        </div>
+                                        <input
+                                            type="email"
+                                            placeholder="founder@startup.com"
+                                            value={emailInput}
+                                            onChange={(e) => setEmailInput(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                                            onPointerDown={(e) => e.stopPropagation()} // stop React Flow drag
+                                            className="w-full bg-background-light dark:bg-background-dark inner-shadow rounded-full pl-12 pr-6 py-4 text-sm text-text-light dark:text-text-dark outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-slate-400"
+                                        />
                                     </div>
-                                    <input
-                                        type="email"
-                                        placeholder="founder@startup.com"
-                                        value={emailInput}
-                                        onChange={(e) => setEmailInput(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
-                                        onPointerDown={(e) => e.stopPropagation()} // stop React Flow drag
-                                        className="w-full bg-background-light dark:bg-background-dark inner-shadow rounded-full pl-12 pr-6 py-4 text-sm text-text-light dark:text-text-dark outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-slate-400"
-                                    />
-                                </div>
+                                )}
                                 <button
                                     onClick={handleUnlock}
                                     className={`w-full py-4 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white outer-shadow active:scale-95 cursor-pointer`}
@@ -276,32 +267,24 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                             </div>
                         </div>
 
-                        {/* Download Button */}
-                        <div className="mt-8 flex justify-center">
-                            {reportPayload ? (
-                                <PDFDownloadLink
-                                    document={<PricingReportPDF documentId={reportPayload.documentId} claudeData={reportPayload.claudeData} chartUrls={reportPayload.chartUrls} pricingResult={result} />}
-                                    fileName={`PricePoint_Intelligence_${reportPayload.documentId}.pdf`}
-                                    className="px-8 py-4 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center gap-2"
-                                >
-                                    {/* @ts-ignore */}
-                                    {({ loading }) => (
-                                        <>
-                                            <FileText size={18} />
-                                            {loading ? 'Rendering PDF...' : 'Download Investment Report'}
-                                        </>
-                                    )}
-                                </PDFDownloadLink>
-                            ) : (
-                                <button
-                                    onClick={handleGenerateReport}
-                                    disabled={isGenerating}
-                                    className="px-8 py-4 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
-                                >
-                                    {isGenerating ? <TrendingUp className="animate-pulse" size={18} /> : <FileText size={18} />}
-                                    {isGenerating ? 'Synthesizing with Claude...' : 'Generate Full Investor Report'}
-                                </button>
-                            )}
+                        {/* Download & Checkout Buttons */}
+                        <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+                            <button
+                                onClick={() => handleCheckout('Professional')}
+                                disabled={isGenerating}
+                                className="px-8 py-4 rounded-full bg-background-light dark:bg-background-dark text-slate-500 hover:text-text-light dark:hover:text-text-dark font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 "
+                            >
+                                {isGenerating ? <TrendingUp className="animate-pulse" size={18} /> : <FileText size={18} />}
+                                Professional Pack ($499)
+                            </button>
+                            <button
+                                onClick={() => handleCheckout('Investor')}
+                                disabled={isGenerating}
+                                className="px-8 py-4 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isGenerating ? <TrendingUp className="animate-pulse" size={18} /> : <Crown size={18} />}
+                                Unlock Investor Report ($999)
+                            </button>
                         </div>
                     </div>
                 )}

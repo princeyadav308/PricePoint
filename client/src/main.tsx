@@ -1,6 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App.tsx'
+import Success from './pages/Success.tsx'
 import './index.css'
 
 // ── DEV HELPER: expose stores for console-driven testing ──
@@ -13,6 +15,11 @@ if (import.meta.env.DEV) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/success" element={<Success />} />
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>,
 )

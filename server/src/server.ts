@@ -1,18 +1,17 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { PrismaClient } from '@prisma/client';
-import Stripe from 'stripe';
 import dotenv from 'dotenv';
 import { generatePricingReport } from './utils/claude';
 
+// Import New Phase 4 routes
+import reportRoutes from './routes/reports';
+import webhookRoutes from './routes/webhooks';
+
+import { prisma } from './lib/db';
+
 // Load environment variables
 dotenv.config();
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', {
-    // API version managed implicitly by SDK
-});
-
-const prisma = new PrismaClient();
 
 const server: FastifyInstance = Fastify({
     logger: true,
@@ -22,68 +21,35 @@ server.register(cors, {
     origin: '*', // Allow all for dev
 });
 
+// Register domain routes
+server.register(reportRoutes);
+server.register(webhookRoutes);
+
 // Root Route
 server.get('/', async (request, reply) => {
-    return { hello: 'world', system: 'PricePoint v2.0 API' };
+    return { hello: 'world', system: 'PricePoint v2.0 API Phase 4' };
 });
 
 // ── Stripe Checkout Endpoint ───────────────────────────────────────
-server.post('/api/checkout', async (request, reply) => {
-    try {
-        const { reportTier } = request.body as { reportTier: string };
-
-        // Pricing logic based on Tier
-        let price = 0;
-        let productName = 'PricePoint Basic Report';
-        if (reportTier === 'Investor') {
-            price = 99900; // $999.00
-            productName = 'PricePoint Investor-Grade Report';
-        } else if (reportTier === 'Professional') {
-            price = 49900; // $499.00
-            productName = 'PricePoint Professional Report';
-        } else {
-            price = 14900; // $149.00
-        }
-
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [
-                {
-                    price_data: {
-                        currency: 'usd',
-                        product_data: {
-                            name: productName,
-                            description: 'Comprehensive data-driven pricing thesis.',
-                        },
-                        unit_amount: price,
-                    },
-                    quantity: 1,
-                },
-            ],
-            mode: 'payment',
-            success_url: `http://localhost:5173/report-success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `http://localhost:5173/analysis`,
-        });
-
-        return { url: session.url, sessionId: session.id };
-    } catch (error) {
-        server.log.error(error);
-        return reply.status(500).send({ error: 'Failed to create Stripe checkout session' });
-    }
-});
+// ── (Old Stripe Checkout Removed - see routes/reports.ts for Dodo Checkout) ──
 
 // ── Claude Generation Endpoint ───────────────────────────────────
 server.post('/api/generate-report', async (request, reply) => {
     try {
-        const { sessionData, pricingResult, appliedModifiers } = request.body as any;
+        const { sessionData, pricingResult, appliedModifiers, tier } = request.body as any;
 
-        // Secure Endpoint: Ensure pricing result exists
-        if (!pricingResult) {
-            return reply.status(400).send({ error: 'Missing pricingResult' });
+        // Secure Endpoint: Ensure core data exists
+        if (!sessionData || !pricingResult) {
+            return reply.status(400).send({ error: 'Missing sessionData or pricingResult' });
         }
 
-        // Call our Claude API Wrapper
-        const claudeReport = await generatePricingReport(pricingResult, appliedModifiers);
+        // Call our Claude API Wrapper with FULL session data
+        const claudeReport = await generatePricingReport(
+            sessionData,      // full Q&A dataset
+            pricingResult,     // algorithm output
+            appliedModifiers,  // MARKET_GRAVITY_APPLIED, etc.
+            tier               // Basic/Professional/Investor
+        );
 
         // Normally, we'd save this to `prisma.report.create(...)` but we return the payload to the frontend.
         return {
@@ -96,7 +62,6 @@ server.post('/api/generate-report', async (request, reply) => {
         return reply.status(500).send({ error: 'Failed to generate report' });
     }
 });
-
 const start = async () => {
     try {
         await server.listen({ port: 3000, host: '0.0.0.0' });
