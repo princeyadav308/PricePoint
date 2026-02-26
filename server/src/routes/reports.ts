@@ -107,20 +107,29 @@ export default async function (server: FastifyInstance) {
             // Call Dodo Payments API natively
             const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY || 'test_apikey';
 
-            // Default to India billing so UPI is available.
-            // Card payments work globally regardless of billing country.
-            const billing = clientBilling || {
-                city: "Mumbai",
-                country: "IN",
-                state: "MH",
-                street: "PricePoint HQ",
-                zipcode: "400001"
+            // Build checkout body — only include billing/customer if frontend provides them.
+            // Dodo's hosted checkout page will collect user details and auto-detect
+            // eligible payment methods (card, UPI, etc.) based on user's actual location.
+            // NOTE: Our products are USD-priced. UPI only works with INR products,
+            // so Dodo will correctly hide UPI for USD products.
+            const checkoutBody: any = {
+                metadata: {
+                    documentId: report.documentId,
+                    tier: report.tier
+                },
+                payment_link: true,
+                product_cart: [
+                    {
+                        product_id: dodoProductId,
+                        quantity: 1
+                    }
+                ],
+                return_url: returnUrl || `http://localhost:5173/success?documentId=${report.documentId}`
             };
 
-            const customer = clientCustomer || {
-                email: "customer@pricepoint.app",
-                name: "PricePoint Customer"
-            };
+            // Forward billing/customer only if provided by frontend
+            if (clientBilling) checkoutBody.billing = clientBilling;
+            if (clientCustomer) checkoutBody.customer = clientCustomer;
 
             const response = await fetch('https://test.dodopayments.com/checkouts', {
                 method: 'POST',
@@ -128,22 +137,7 @@ export default async function (server: FastifyInstance) {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${dodoApiKey}`
                 },
-                body: JSON.stringify({
-                    billing,
-                    customer,
-                    metadata: {
-                        documentId: report.documentId,
-                        tier: report.tier
-                    },
-                    payment_link: true,
-                    product_cart: [
-                        {
-                            product_id: dodoProductId,
-                            quantity: 1
-                        }
-                    ],
-                    return_url: returnUrl || `http://localhost:5173/success?documentId=${report.documentId}`
-                })
+                body: JSON.stringify(checkoutBody)
             });
 
             if (!response.ok) {
