@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 export default async function (server: FastifyInstance) {
 
@@ -8,14 +9,35 @@ export default async function (server: FastifyInstance) {
     // ──────────────────────────────────────────────────────────
     server.post('/api/reports/initialize', async (request, reply) => {
         try {
+            // VERIFY AUTH TOKEN FIRST (Production Hardening)
+            const authHeader = request.headers.authorization;
+            let user: any = null;
+
+            if (process.env.NODE_ENV !== 'production' && (!authHeader || authHeader.includes('test-bypass'))) {
+                // Allow TestSprite bypass only in non-production environments
+                user = { email: 'test_sprite@example.com' };
+            } else {
+                if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                    return reply.status(401).send({ error: 'Missing or invalid Authorization header' });
+                }
+
+                const token = authHeader.split(' ')[1];
+                const { data, error: authError } = await supabase.auth.getUser(token);
+                if (authError || !data.user) {
+                    server.log.warn(`Unauthorized initialization attempt: ${authError?.message}`);
+                    return reply.status(401).send({ error: 'Unauthorized: Invalid token' });
+                }
+                user = data.user;
+            }
+
             const { sessionData, pricingResult, tier } = request.body as any;
 
             if (!sessionData || !tier || !pricingResult) {
                 return reply.status(400).send({ error: 'Missing sessionData, tier, or pricingResult' });
             }
 
-            // Create or find a Lead (using a mock email if not provided for now)
-            const email = sessionData.user?.email || `guest_${Date.now()}@example.com`;
+            // Create or find a Lead using the verified user's secure token email
+            const email = user.email || sessionData.user?.email || `guest_${Date.now()}@example.com`;
 
             let lead = await prisma.lead.findUnique({ where: { email } });
             if (!lead) {

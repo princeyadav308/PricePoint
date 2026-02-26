@@ -7,11 +7,12 @@
     "projectName": "client",
     "projectPath": "c:\\Users\\Captain\\Desktop\\Captain\\personal projects\\PricePoint\\client",
     "testIds": [],
-    "additionalInstruction": "Ensure tests check that the main landing page loads and the mind map component renders when requested.",
+    "additionalInstruction": "Test the authentication flow using the password 'captain'.",
+    "serverMode": "development",
     "envs": {
       "API_KEY": "sk-user-I9llp6PUCN9nssmTXYCUf1BEIM2LDxip6SCk2S8_MaJq2YI64BsEljHnjVUGdE49nN4nrlTOnDaVQm-fQXCc5PR_QVJ5WOJFyzkOfyOL5vI8zZKHpE66u6D-iqhDRSawv3s"
     }
   },
-  "serverPort": 50092,
-  "proxy": "http://2d75d63a-d6b2-484e-af02-da355cccceb2:bSHG1IVXTLvgCQSU7FgJ8fsTsMRIDZWJ@tun.testsprite.com:8080"
+  "serverPort": 64286,
+  "proxy": "http://fcd9e1b4-ff5a-4148-8b59-bfe5b1d27297:RJhstAfV1KUzEbD2NVymSBUwQDbSqppp@tun.testsprite.com:8080"
 }

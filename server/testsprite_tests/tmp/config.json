@@ -1,0 +1,21 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "backendAuthType": "basic token",
+  "backendUsername": "princeyadav308@gmail.com",
+  "backendPassword": "Captain",
+  "executionArgs": {
+    "projectName": "server",
+    "projectPath": "C:\\Users\\Captain\\Desktop\\Captain\\personal projects\\PricePoint\\server",
+    "testIds": [],
+    "additionalInstruction": "IMPORTANT requirements for /api/reports/initialize endpoint tests: the JSON payload MUST contain \"sessionData\" (object), \"pricingResult\" (object), and \"tier\" (string). DO NOT MISS THESE FIELDS. Ensure the generated Python files are syntactically correct and remove all stray explanatory text or markdown before executing.",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-I9llp6PUCN9nssmTXYCUf1BEIM2LDxip6SCk2S8_MaJq2YI64BsEljHnjVUGdE49nN4nrlTOnDaVQm-fQXCc5PR_QVJ5WOJFyzkOfyOL5vI8zZKHpE66u6D-iqhDRSawv3s"
+    }
+  },
+  "serverPort": 54088,
+  "proxy": "http://74fd7f93-be41-44f5-8b59-1b97a2fe5275:FO2M7PyYilAR2c1mXP4zVHn3vGSvgZCt@tun.testsprite.com:8080"
+}

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "initialize_report_session_with_valid_data",
+    "description": "Test POST /api/reports/initialize with valid journey_type, product_info, and answers to ensure it returns 201 Created with documentId, sessionId, and initial_status 'draft'. Verify subsequent GET /api/reports/status/:documentId returns correct draft status."
+  },
+  {
+    "id": "TC002",
+    "title": "initialize_report_session_with_invalid_data",
+    "description": "Test POST /api/reports/initialize with malformed or missing required fields to verify it returns 400 Bad Request with appropriate validation error messages."
+  },
+  {
+    "id": "TC003",
+    "title": "create_dodo_checkout_session_with_valid_data",
+    "description": "Test POST /api/checkout with valid documentId, tier, price, and return_url to ensure it returns 200 OK with checkout_id, checkout_url, and expires_at for payment completion."
+  },
+  {
+    "id": "TC004",
+    "title": "create_dodo_checkout_session_with_invalid_data",
+    "description": "Test POST /api/checkout with invalid documentId or unsupported tier to verify it returns 400 Bad Request with error details about invalid documentId or tier."
+  },
+  {
+    "id": "TC005",
+    "title": "poll_report_status_for_existing_document",
+    "description": "Test GET /api/reports/status/:documentId for a newly created report to verify it returns 200 OK with status 'draft' and progress 0."
+  },
+  {
+    "id": "TC006",
+    "title": "poll_report_status_after_payment_and_generation",
+    "description": "Test GET /api/reports/status/:documentId after payment webhook and report generation complete to verify it returns 200 OK with status 'ready' and report metadata including report_id, document_id, download_url, and generated_at."
+  },
+  {
+    "id": "TC007",
+    "title": "poll_report_status_for_unknown_document",
+    "description": "Test GET /api/reports/status/:unknownDocumentId to verify it returns 404 Not Found with an error message indicating the document was not found."
+  },
+  {
+    "id": "TC008",
+    "title": "dodo_payments_webhook_with_valid_payload",
+    "description": "Test POST /api/webhooks/dodo with a valid signed payment success payload to verify it returns 200 OK acknowledgement and updates the report status accordingly (e.g., to 'paid' or 'generation_pending')."
+  },
+  {
+    "id": "TC009",
+    "title": "dodo_payments_webhook_with_invalid_payload",
+    "description": "Test POST /api/webhooks/dodo with invalid signature or malformed payload to verify it returns 401 Unauthorized or 400 Bad Request and does not update the report status."
+  },
+  {
+    "id": "TC010",
+    "title": "generate_ai_report_with_valid_data",
+    "description": "Test POST /api/generate-report with valid documentId and session_data to verify it returns 202 Accepted with jobId, documentId, and status 'generation_started'. Verify subsequent polling of GET /api/reports/status/:documentId returns status 'ready' with report metadata."
+  }
+]

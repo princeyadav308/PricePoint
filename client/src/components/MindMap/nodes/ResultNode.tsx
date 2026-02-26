@@ -4,6 +4,7 @@ import { Crown, TrendingUp, Zap, FileText, X, Lock, Mail } from 'lucide-react';
 import type { PricingResult } from '../../../utils/pricingEngine';
 import { useSessionStore } from '../../../store/useSessionStore';
 import { AuthModal } from '../../AuthModal';
+import { supabase } from '../../../lib/supabase';
 
 // ============================================================
 // ResultNode — Trinity Price Quote (Phase 3)
@@ -50,10 +51,22 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
         try {
             const fullSessionData = useSessionStore.getState();
 
+            // Get Supabase Session Token
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (!token) {
+                setShowAuthModal(true);
+                setIsGenerating(false);
+                return;
+            }
+
             // 1. Initialize DB Record
             const initRes = await fetch('http://127.0.0.1:3000/api/reports/initialize', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     sessionData: fullSessionData,
                     pricingResult: data.result,  // Send the calculated numbers!
