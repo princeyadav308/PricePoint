@@ -258,6 +258,73 @@
   }
 }
 
+/* ---------- GPay-Style Payment Success Checkmark ---------- */
+@keyframes draw-circle {
+  0% {
+    stroke-dashoffset: 283;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes draw-check {
+  0% {
+    stroke-dashoffset: 50;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes check-scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes check-fill {
+  0% {
+    fill: transparent;
+  }
+
+  100% {
+    fill: rgba(16, 185, 129, 0.08);
+  }
+}
+
+.success-checkmark-container {
+  animation: check-scale-in 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.success-circle {
+  stroke-dasharray: 283;
+  stroke-dashoffset: 283;
+  animation: draw-circle 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.2s forwards;
+}
+
+.success-circle-fill {
+  animation: check-fill 0.4s ease 0.7s forwards;
+}
+
+.success-check {
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  animation: draw-check 0.4s cubic-bezier(0.65, 0, 0.35, 1) 0.6s forwards;
+}
+
 /* ── Neumorphic Slider ── */
 .neu-slider {
   -webkit-appearance: none;

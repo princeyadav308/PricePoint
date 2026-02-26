@@ -82,7 +82,7 @@ export default async function (server: FastifyInstance) {
     // ──────────────────────────────────────────────────────────
     server.post('/api/checkout', async (request, reply) => {
         try {
-            const { documentId, returnUrl } = request.body as any;
+            const { documentId, returnUrl, billing: clientBilling, customer: clientCustomer } = request.body as any;
 
             if (!documentId) {
                 return reply.status(400).send({ error: 'Missing documentId' });
@@ -105,7 +105,22 @@ export default async function (server: FastifyInstance) {
             }
 
             // Call Dodo Payments API natively
-            const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY || 'test_apikey'; // Replace with real key in prod
+            const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY || 'test_apikey';
+
+            // Default to India billing so UPI is available.
+            // Card payments work globally regardless of billing country.
+            const billing = clientBilling || {
+                city: "Mumbai",
+                country: "IN",
+                state: "MH",
+                street: "PricePoint HQ",
+                zipcode: "400001"
+            };
+
+            const customer = clientCustomer || {
+                email: "customer@pricepoint.app",
+                name: "PricePoint Customer"
+            };
 
             const response = await fetch('https://test.dodopayments.com/checkouts', {
                 method: 'POST',
@@ -114,22 +129,13 @@ export default async function (server: FastifyInstance) {
                     'Authorization': `Bearer ${dodoApiKey}`
                 },
                 body: JSON.stringify({
-                    billing: {
-                        city: "San Francisco",
-                        country: "US",
-                        state: "CA",
-                        street: "123 Main St",
-                        zipcode: "94105"
-                    },
-                    customer: {
-                        email: "test@example.com",
-                        name: "Test Customer"
-                    },
+                    billing,
+                    customer,
                     metadata: {
-                        documentId: report.documentId, // Crucial for Webhook identification
+                        documentId: report.documentId,
                         tier: report.tier
                     },
-                    payment_link: true, // We want a hosted checkout link
+                    payment_link: true,
                     product_cart: [
                         {
                             product_id: dodoProductId,

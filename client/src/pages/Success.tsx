@@ -10,7 +10,7 @@ export default function Success() {
     const navigate = useNavigate();
     const documentId = searchParams.get('documentId');
 
-    const [status, setStatus] = useState<'polling' | 'generating' | 'ready' | 'error'>('polling');
+    const [status, setStatus] = useState<'polling' | 'verified' | 'generating' | 'ready' | 'error'>('polling');
     const [pollCount, setPollCount] = useState(0);
     const [reportPayload, setReportPayload] = useState<{ claudeData: any } | null>(null);
 
@@ -31,9 +31,9 @@ export default function Success() {
                 const data = await res.json();
 
                 if (data.paymentStatus === 'Paid') {
-                    // Payment confirmed! Store data and generate narrative
+                    // Payment confirmed! Store data and show checkmark first
                     setSavedSessionData(data.sessionData);
-                    setStatus('generating');
+                    setStatus('verified');
                 } else {
                     // Still waiting (Max 30 retries = 90 seconds)
                     if (pollCount >= 30) {
@@ -52,6 +52,13 @@ export default function Success() {
         checkStatus();
     }, [documentId, status, pollCount]);
 
+
+    // Once verified, auto-advance to generating after the checkmark animation
+    useEffect(() => {
+        if (status !== 'verified') return;
+        const timer = setTimeout(() => setStatus('generating'), 2000);
+        return () => clearTimeout(timer);
+    }, [status]);
 
     // Once Paid, hit the AI Generation endpoint
     useEffect(() => {
@@ -127,10 +134,46 @@ export default function Success() {
                         <p className="text-slate-500 mb-6 leading-relaxed">
                             Waiting for secure confirmation from Dodo Payments.
                         </p>
-                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-2 inner-shadow overflow-hidden">
-                            <div className="bg-primary h-2 rounded-full animate-progress" style={{ width: `${(pollCount / 30) * 100}%` }}></div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 inner-shadow overflow-hidden">
+                            <div className="bg-primary h-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${Math.min((pollCount / 30) * 100, 100)}%` }}></div>
                         </div>
-                        <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Attempt {pollCount}/30</span>
+                    </div>
+                )}
+
+                {status === 'verified' && (
+                    <div className="flex flex-col items-center">
+                        {/* GPay-style animated checkmark */}
+                        <div className="w-24 h-24 mb-8 success-checkmark-container">
+                            <svg viewBox="0 0 100 100" className="w-full h-full">
+                                {/* Background circle fill */}
+                                <circle cx="50" cy="50" r="45" fill="transparent" className="success-circle-fill" />
+                                {/* Animated circle stroke */}
+                                <circle
+                                    cx="50" cy="50" r="45"
+                                    fill="none"
+                                    stroke="#10B981"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    className="success-circle"
+                                />
+                                {/* Animated checkmark */}
+                                <path
+                                    d="M30 52 L44 66 L70 38"
+                                    fill="none"
+                                    stroke="#10B981"
+                                    strokeWidth="4"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="success-check"
+                                />
+                            </svg>
+                        </div>
+                        <h2 className="text-2xl font-bold text-text-light dark:text-text-dark mb-3 animate-fade-in">
+                            Payment Verified
+                        </h2>
+                        <p className="text-emerald-500 font-medium text-sm animate-fade-in">
+                            Preparing your intelligence report...
+                        </p>
                     </div>
                 )}
 
