@@ -31,3 +31,16 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Documents & Assets (not needed in repo)
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+PriceIQ_PRD_v2.0.md
+
+# TestSprite (auto-generated test files)
+testsprite_tests/
+.testsprite/

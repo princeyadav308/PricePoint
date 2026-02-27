@@ -32,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ isDark, toggleDarkMode }) => {
                 </div>
                 <div className="flex items-center gap-4 pointer-events-auto">
                     <button
-                        className="hover-in-shadow p-2.5 rounded-full bg-background-light dark:bg-background-dark text-gray-500 hover:text-primary transition-all cursor-pointer"
+                        className="hover-in-shadow w-10 h-10 flex items-center justify-center rounded-full bg-background-light dark:bg-background-dark text-gray-500 hover:text-primary transition-all cursor-pointer"
                         onClick={toggleDarkMode}
                         title="Toggle Dark Mode"
                     >
@@ -40,12 +40,6 @@ const Header: React.FC<HeaderProps> = ({ isDark, toggleDarkMode }) => {
                             {isDark ? 'light_mode' : 'dark_mode'}
                         </span>
                     </button>
-                    <div className="outer-shadow px-4 py-2 rounded-xl bg-background-light dark:bg-background-dark flex items-center gap-2 border border-gray-100 dark:border-gray-700/30">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-xs font-bold tracking-wider text-gray-600 dark:text-gray-300">
-                            SYS_ACTIVE_LIVE
-                        </span>
-                    </div>
 
                     {/* Auth Controls */}
                     {isAuthenticated ? (

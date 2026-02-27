@@ -29,6 +29,7 @@ export type SessionStage =
     | 'business_goals'
     | 'distribution'
     | 'psychological'
+    | 'audit_baseline'
     | 'results'
     | 'report_preview';
 

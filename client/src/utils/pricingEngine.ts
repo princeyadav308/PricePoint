@@ -98,9 +98,51 @@ function calculateBaseMultiplier(
 }
 
 // ── Main: calculatePrice ─────────────────────────────────────
+const NA_MARKER = '__NA__';
+
+/** Check if a value is a real answer (not N/A, not undefined/null) */
+function isRealAnswer(answers: Record<string, { value: unknown }>, key: string): boolean {
+    const ans = answers[key];
+    if (!ans) return false;
+    const val = ans.value;
+    if (val === null || val === undefined || val === '') return false;
+    if (val === NA_MARKER) return false;
+    return true;
+}
+
 export function calculatePrice(
     answers: Record<string, { value: unknown }>,
-): PricingResult {
+): PricingResult | null {
+    // ══════════════════════════════════════════════════════════
+    // GUARD: Minimum Viable Data Check
+    // ══════════════════════════════════════════════════════════
+
+    // 1. Count total answers vs N/A markers
+    const allKeys = Object.keys(answers);
+    const naCount = allKeys.filter((k) => answers[k]?.value === NA_MARKER).length;
+    const totalCount = allKeys.length;
+    if (totalCount > 0 && naCount / totalCount > 0.5) {
+        return null; // More than 50% skipped
+    }
+
+    // 2. Check critical price sensitivity inputs
+    const hasAnySensitivity = ['too_cheap', 'bargain', 'getting_expensive', 'too_expensive']
+        .some((k) => isRealAnswer(answers, k));
+
+    // 3. Check if unit economics data exists
+    const hasUnitEconomics = ['ue_physical', 'ue_service', 'ue_digital']
+        .some((k) => isRealAnswer(answers, k));
+
+    // 4. Check financials
+    const hasFinancials = isRealAnswer(answers, 'desired_margin');
+
+    // If no sensitivity data AND no unit economics AND no financials → insufficient
+    if (!hasAnySensitivity && !hasUnitEconomics && !hasFinancials) {
+        return null;
+    }
+
+    // ══════════════════════════════════════════════════════════
+
     // Extract base answers
     const totalUnitCost = extractUnitEconomicsCost(answers);
     const desiredMargin = Number(answers['desired_margin']?.value) || 20;

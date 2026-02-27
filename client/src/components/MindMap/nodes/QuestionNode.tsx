@@ -12,6 +12,7 @@ import { STAGE_MAP, PRODUCT_TYPE_TO_DEEP_DIVE } from '../../../data/questions.co
 import { useMindMapStore } from '../../../store/useMindMapStore';
 import { useSessionStore } from '../../../store/useSessionStore';
 import type { SessionStage } from '../../../types/session';
+import { getCurrencyFromAnswers } from '../../../utils/currency';
 
 // ============================================================
 // QuestionNode — Dynamic Question Engine
@@ -88,40 +89,97 @@ const SliderField = ({
     const min = field.min ?? 0;
     const max = field.max ?? 100;
     const displayVal = value ?? min;
-    const pct = ((displayVal - min) / (max - min)) * 100;
     const isTouched = value !== undefined;
+    const [customMode, setCustomMode] = useState(false);
+
+    // Resolve 'currency' sentinel to actual symbol from session answers
+    const sessionAnswers = useSessionStore((s) => s.answers);
+    const isCurrency = field.unit === 'currency';
+    const resolvedUnit = isCurrency ? getCurrencyFromAnswers(sessionAnswers) : (field.unit ?? '');
+
+    // Clamp percentage for the slider fill
+    const clampedVal = Math.min(displayVal, max);
+    const pct = ((clampedVal - min) / (max - min)) * 100;
+
+    // If value exceeds slider max, auto-switch to custom mode
+    if (isCurrency && value !== undefined && value > max && !customMode) {
+        setCustomMode(true);
+    }
 
     return (
         <div className="space-y-3 nodrag">
             <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-400">{min}{field.unit ?? ''}</span>
+                <span className="text-xs text-slate-400">{min}{resolvedUnit}</span>
                 <span className={`text-sm font-bold px-3 py-1 rounded-full transition-all ${isTouched
                     ? 'text-primary bg-background-light dark:bg-background-dark outer-shadow'
                     : 'text-slate-400 bg-transparent'
                     }`}>
-                    {displayVal}{field.unit ?? ''}
+                    {isTouched ? `${displayVal.toLocaleString()}${resolvedUnit}` : `${displayVal}${resolvedUnit}`}
                 </span>
-                <span className="text-xs text-slate-400">{max}{field.unit ?? ''}</span>
+                <span className="text-xs text-slate-400">{max}{resolvedUnit}</span>
             </div>
-            <div className="relative h-2">
-                <div className="absolute inset-0 rounded-full inner-shadow" />
-                <div
-                    className="absolute top-0 left-0 h-full rounded-full bg-primary transition-all duration-150"
-                    style={{ width: `${pct}%` }}
-                />
-                <input
-                    type="range"
-                    min={min}
-                    max={max}
-                    step={field.step ?? 1}
-                    value={displayVal}
-                    onChange={(e) => onChange(Number(e.target.value))}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    disabled={disabled}
-                    className="neu-slider absolute inset-0 w-full disabled:opacity-50"
-                />
-            </div>
+
+            {customMode ? (
+                /* ── Custom number input ── */
+                <div className="flex items-center gap-2">
+                    <div className="flex-1 relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">{resolvedUnit}</span>
+                        <input
+                            type="number"
+                            min={min}
+                            value={value ?? ''}
+                            onChange={(e) => onChange(Number(e.target.value))}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            disabled={disabled}
+                            placeholder="Enter amount"
+                            className="w-full py-2 pl-8 pr-3 rounded-xl inner-shadow bg-background-light dark:bg-background-dark text-sm text-text-light dark:text-text-dark outline-none transition-all focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                        />
+                    </div>
+                    <button
+                        onClick={() => {
+                            if (value && value > max) onChange(max);
+                            setCustomMode(false);
+                        }}
+                        disabled={disabled}
+                        className="text-[10px] font-bold px-3 py-2 rounded-lg outer-shadow text-slate-500 hover:text-primary transition-all cursor-pointer whitespace-nowrap"
+                    >
+                        Slider
+                    </button>
+                </div>
+            ) : (
+                /* ── Slider with optional Custom button ── */
+                <div className="flex items-center gap-2">
+                    <div className="relative h-6 flex items-center flex-1">
+                        <div className="absolute left-0 right-0 h-2 rounded-full inner-shadow" />
+                        <div
+                            className="absolute left-0 h-2 rounded-full bg-primary transition-all duration-150"
+                            style={{ width: `${pct}%`, top: '50%', transform: 'translateY(-50%)' }}
+                        />
+                        <input
+                            type="range"
+                            min={min}
+                            max={max}
+                            step={field.step ?? 1}
+                            value={clampedVal}
+                            onChange={(e) => onChange(Number(e.target.value))}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            disabled={disabled}
+                            className="neu-slider absolute inset-0 w-full disabled:opacity-50"
+                        />
+                    </div>
+                    {isCurrency && (
+                        <button
+                            onClick={() => setCustomMode(true)}
+                            disabled={disabled}
+                            className="text-[10px] font-bold px-3 py-2 rounded-lg outer-shadow text-slate-500 hover:text-primary transition-all cursor-pointer whitespace-nowrap"
+                        >
+                            Custom
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -465,7 +523,10 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
     const hasValidationErrors = config.fields.some((field) => {
         if (naFields.has(field.id)) return false;
         if (field.validate && formState[field.id] !== undefined) {
-            return field.validate(formState[field.id], formState) !== null;
+            const result = field.validate(formState[field.id], formState);
+            // Warnings (starting with ⚠️) are non-blocking
+            if (result && result.startsWith('⚠️')) return false;
+            return result !== null;
         }
         return false;
     });
@@ -506,6 +567,19 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
                     duration: 800,
                     padding: 0.3,
                     maxZoom: 0.6,
+                });
+            }, 250);
+        } else if (resolvedNextStageId === 'financials_focus' || resolvedNextStageId === 'product_value_focus') {
+            // Special sentinel: focus camera on existing card (no new node spawned)
+            const targetNodeId = resolvedNextStageId === 'financials_focus'
+                ? 'stage-financials'
+                : 'stage-product_value';
+            setTimeout(() => {
+                fitView({
+                    nodes: [{ id: targetNodeId }],
+                    duration: 800,
+                    padding: 0.2,
+                    maxZoom: 1.1,
                 });
             }, 250);
         } else if (resolvedNextStageId === 'result') {
@@ -731,13 +805,21 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
 
                             {renderField(field)}
 
-                            {/* Error text */}
-                            {!naFields.has(field.id) && field.validate && formState[field.id] !== undefined && field.validate(formState[field.id], formState) && (
-                                <div className="text-[11px] font-medium text-red-500 flex items-center gap-1.5 mt-0.5 px-1 animate-in slide-in-from-top-1 fade-in duration-200">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                                    {field.validate(formState[field.id], formState)}
-                                </div>
-                            )}
+                            {/* Error / Warning text — reserved height to prevent layout shift */}
+                            <div className="min-h-[18px]">
+                                {!naFields.has(field.id) && field.validate && formState[field.id] !== undefined && (() => {
+                                    const msg = field.validate(formState[field.id], formState);
+                                    if (!msg) return null;
+                                    const isWarning = msg.startsWith('⚠️');
+                                    return (
+                                        <div className={`text-[11px] font-medium flex items-center gap-1.5 mt-0.5 px-1 animate-in slide-in-from-top-1 fade-in duration-200 ${isWarning ? 'text-amber-500' : 'text-red-500'
+                                            }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${isWarning ? 'bg-amber-500' : 'bg-red-500'}`} />
+                                            {msg}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                         </div>
                     ))}
                 </div>

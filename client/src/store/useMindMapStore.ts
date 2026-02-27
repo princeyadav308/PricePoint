@@ -331,7 +331,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
 
         // Run pricing engine
         const sessionAnswers = useSessionStore.getState().answers;
-        const result: PricingResult = calculatePrice(sessionAnswers);
+        const result: PricingResult | null = calculatePrice(sessionAnswers);
 
         const resultNode: Node = {
             id: 'result-trinity',
@@ -349,8 +349,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
             sourceHandle: 'right',
             target: 'result-trinity',
             targetHandle: 'left',
-            type: 'smoothstep',
-            style: { stroke: '#DFA81C', strokeWidth: 2 },
+            type: 'animatedEdge',
         };
 
         set({

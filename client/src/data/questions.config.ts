@@ -42,7 +42,7 @@ export const JOURNEY_A_ROOT: StageConfig = {
     id: 'journey_root_a',
     title: 'Pricing Audit Context',
     icon: 'SearchCheck',
-    nextStageId: 'product_classification',
+    nextStageId: 'audit_baseline',
     scrollable: true,
     fields: [
         {
@@ -50,12 +50,6 @@ export const JOURNEY_A_ROOT: StageConfig = {
             type: 'mcq',
             label: 'Is this product currently live and selling?',
             options: ['Yes, live and selling', 'Yes, but paused', 'Sold before, stopped', 'Never sold at a price'],
-        },
-        {
-            id: 'ra2_current_price',
-            type: 'number',
-            label: 'What is your current price for this product?',
-            placeholder: 'e.g. 49.99',
         },
         {
             id: 'ra3_time_at_price',
@@ -77,12 +71,6 @@ export const JOURNEY_A_ROOT: StageConfig = {
             placeholder: 'e.g. 150',
         },
         {
-            id: 'ra6_satisfaction',
-            type: 'mcq',
-            label: 'Are you satisfied with your current profit margin?',
-            options: ['I think I\'m undercharging', 'I think I\'m overcharging', 'Margins feel okay, want to verify', 'Genuinely don\'t know'],
-        },
-        {
             id: 'ra7_cost_change',
             type: 'mcq',
             label: 'Have your costs changed since you last set this price?',
@@ -94,6 +82,30 @@ export const JOURNEY_A_ROOT: StageConfig = {
             type: 'mcq',
             label: 'Has the competitive landscape changed since you set your price?',
             options: ['More competitive now', 'Less competition now', 'Market seems similar', 'Don\'t monitor competitors'],
+        },
+    ],
+};
+
+/** Audit Baseline Verification — Audit Journey Only */
+export const AUDIT_BASELINE: StageConfig = {
+    id: 'audit_baseline',
+    title: 'Audit Baseline Verification',
+    icon: 'BarChart3',
+    nextStageId: 'product_classification',
+    fields: [
+        {
+            id: 'ab_current_active_price',
+            type: 'number',
+            label: 'What is your current active price for this product/service?',
+            placeholder: 'e.g. 49.99',
+            helpText: 'Enter the exact price your customers currently pay. This establishes the baseline for our Revenue Leakage analysis — how much money you may be leaving on the table.',
+        },
+        {
+            id: 'ab_price_sentiment',
+            type: 'mcq',
+            label: 'What is your current sentiment regarding this price?',
+            helpText: 'Your gut feeling about pricing often correlates with actual market positioning. This data powers the Revenue Leakage section in Professional and Investor reports.',
+            options: ['Overcharging', 'Undercharging', 'Not Sure'],
         },
     ],
 };
@@ -185,6 +197,25 @@ export const STAGE_CLASSIFICATION: StageConfig = {
             type: 'select',
             label: 'Currency',
             options: ['USD ($)', 'EUR (€)', 'GBP (£)', 'INR (₹)', 'CAD (C$)', 'AUD (A$)'],
+            helpText: 'All prices in your report will be displayed in this currency.',
+            validate: (val, form) => {
+                // Soft warning for country/currency mismatch
+                const country = form?.['business_country'];
+                if (!country || !val || country === 'Other') return null;
+                const expected: Record<string, string> = {
+                    'United States': 'USD ($)',
+                    'United Kingdom': 'GBP (£)',
+                    'India': 'INR (₹)',
+                    'European Union': 'EUR (€)',
+                    'Canada': 'CAD (C$)',
+                    'Australia': 'AUD (A$)',
+                };
+                const exp = expected[country];
+                if (exp && exp !== val) {
+                    return `⚠️ Businesses in ${country} typically use ${exp.split(' ')[0]}. Your report will use ${String(val).split(' ')[0]}.`;
+                }
+                return null;
+            },
         },
     ],
 };
@@ -465,6 +496,7 @@ export const BRANCH_MARKET_RESEARCH: StageConfig = {
     title: 'Market Research',
     icon: 'Globe',
     scrollable: true,
+    nextStageId: 'product_value_focus',  // sentinel → focus camera on existing Product Value card
     fields: [
         {
             id: 'competitor_count',
@@ -688,6 +720,7 @@ export const STAGE_6_PSYCHOLOGICAL: StageConfig = {
     title: 'Psychological Pricing',
     icon: 'BrainCircuit',
     scrollable: true,
+    nextStageId: 'financials_focus',  // sentinel → focus camera on existing Financials card
     fields: [
         {
             id: 'presentation_style',
@@ -724,7 +757,7 @@ export const VAN_WESTENDORP_QUESTIONS: StageConfig = {
             type: 'slider',
             label: 'At what price would you question this product\'s quality?',
             helpText: 'Think as a buyer: at what low price would you think "something must be wrong with this"? Example: A $5 leather wallet would raise quality concerns.',
-            min: 1, max: 999, step: 1, unit: '$',
+            min: 1, max: 999, step: 1, unit: 'currency',
             validate: (val, form) => (form.bargain !== undefined && Number(val) >= Number(form.bargain)) ? 'Must be strictly less than Bargain price.' : null,
         },
         {
@@ -732,7 +765,7 @@ export const VAN_WESTENDORP_QUESTIONS: StageConfig = {
             type: 'slider',
             label: 'At what price is this product a great bargain?',
             helpText: 'The price where a customer would think "that\'s a great deal!" — low enough to feel like a steal, but high enough to trust the quality.',
-            min: 1, max: 999, step: 1, unit: '$',
+            min: 1, max: 999, step: 1, unit: 'currency',
             validate: (val, form) => {
                 if (form.too_cheap !== undefined && Number(val) <= Number(form.too_cheap)) return 'Must be strictly greater than Too Cheap.';
                 if (form.getting_expensive !== undefined && Number(val) >= Number(form.getting_expensive)) return 'Must be strictly less than Getting Expensive.';
@@ -744,7 +777,7 @@ export const VAN_WESTENDORP_QUESTIONS: StageConfig = {
             type: 'slider',
             label: 'At what price does this product start getting expensive?',
             helpText: 'The price where the buyer pauses and thinks "hmm, that\'s getting pricey" — they might still buy, but they\'d need convincing.',
-            min: 1, max: 999, step: 1, unit: '$',
+            min: 1, max: 999, step: 1, unit: 'currency',
             validate: (val, form) => {
                 if (form.bargain !== undefined && Number(val) <= Number(form.bargain)) return 'Must be strictly greater than Bargain price.';
                 if (form.too_expensive !== undefined && Number(val) >= Number(form.too_expensive)) return 'Must be strictly less than Too Expensive.';
@@ -756,7 +789,7 @@ export const VAN_WESTENDORP_QUESTIONS: StageConfig = {
             type: 'slider',
             label: 'At what price is this product too expensive to consider?',
             helpText: 'The price where the buyer says "absolutely not" — no amount of features or quality would justify this price. This sets the ceiling for your pricing range.',
-            min: 1, max: 999, step: 1, unit: '$',
+            min: 1, max: 999, step: 1, unit: 'currency',
             validate: (val, form) => (form.getting_expensive !== undefined && Number(val) <= Number(form.getting_expensive)) ? 'Must be strictly greater than Getting Expensive.' : null,
         },
     ],
@@ -767,6 +800,9 @@ export const STAGE_MAP: Record<string, StageConfig> = {
     // Journey Roots
     journey_root_a: JOURNEY_A_ROOT,
     journey_root_b: JOURNEY_B_ROOT,
+
+    // Audit Baseline (Audit path only)
+    audit_baseline: AUDIT_BASELINE,
 
     // Classification + Description
     product_classification: STAGE_CLASSIFICATION,

@@ -21,26 +21,7 @@ const Footer: React.FC = () => {
                 </div>
             </div>
 
-            {/* ── Right Section: Zoom/Pan Controls ── */}
-            <div className="pointer-events-auto flex flex-col gap-4 items-end">
-                <div className="flex items-center bg-background-light dark:bg-background-dark rounded-xl outer-shadow p-1">
-                    <button className="hover-in-shadow w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 cursor-pointer">
-                        <span className="material-icons-round text-sm">add</span>
-                    </button>
-                    <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-0.5"></div>
-                    <button className="hover-in-shadow w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 cursor-pointer">
-                        <span className="material-icons-round text-sm">remove</span>
-                    </button>
-                    <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-0.5"></div>
-                    <button className="hover-in-shadow w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 cursor-pointer">
-                        <span className="material-icons-round text-sm">center_focus_weak</span>
-                    </button>
-                    <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-0.5"></div>
-                    <button className="active-pressed w-10 h-10 flex items-center justify-center rounded-lg text-gray-800 dark:text-gray-200 cursor-pointer">
-                        <span className="material-icons-round text-sm">pan_tool</span>
-                    </button>
-                </div>
-            </div>
+            {/* Zoom controls are rendered inside MindMap component */}
         </footer>
     );
 };

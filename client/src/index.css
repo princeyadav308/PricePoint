@@ -221,6 +221,16 @@
   background-color: #2D3748 !important;
 }
 
+/* Light-theme grab cursor — use native system cursor */
+.react-flow__pane {
+  cursor: grab !important;
+}
+
+.react-flow__pane:active,
+.react-flow__pane.dragging {
+  cursor: grabbing !important;
+}
+
 .react-flow__controls,
 .react-flow__minimap,
 .react-flow__attribution {
@@ -354,7 +364,6 @@
   background: #DFA81C;
   box-shadow: var(--outer-shadow);
   cursor: pointer;
-  margin-top: -8px;
   transition: transform 0.2s ease;
 }
 
