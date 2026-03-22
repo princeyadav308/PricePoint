@@ -7,6 +7,8 @@ import { generatePricingReport } from './utils/claude';
 // Import New Phase 4 routes
 import reportRoutes from './routes/reports';
 import webhookRoutes from './routes/webhooks';
+import intelligenceRoutes from './routes/intelligence';
+import userRoutes from './routes/user';
 
 import { prisma } from './lib/db';
 
@@ -24,6 +26,8 @@ server.register(cors, {
 // Register domain routes
 server.register(reportRoutes);
 server.register(webhookRoutes);
+server.register(intelligenceRoutes);
+server.register(userRoutes);
 
 // Root Route
 server.get('/', async (request, reply) => {
@@ -36,19 +40,24 @@ server.get('/', async (request, reply) => {
 // ── Claude Generation Endpoint ───────────────────────────────────
 server.post('/api/generate-report', async (request, reply) => {
     try {
-        const { sessionData, pricingResult, appliedModifiers, tier } = request.body as any;
+        const { sessionData, pricingResult, appliedModifiers, tier, intelligenceData } = request.body as any;
 
         // Secure Endpoint: Ensure core data exists
         if (!sessionData || !pricingResult) {
             return reply.status(400).send({ error: 'Missing sessionData or pricingResult' });
         }
 
-        // Call our Claude API Wrapper with FULL session data
+        // Extract journeyType from session data
+        const journeyType = sessionData.journeyType || 'new_launcher';
+
+        // Call our Claude API Wrapper with FULL session data + intelligence enrichment
         const claudeReport = await generatePricingReport(
-            sessionData,      // full Q&A dataset
-            pricingResult,     // algorithm output
-            appliedModifiers,  // MARKET_GRAVITY_APPLIED, etc.
-            tier               // Basic/Professional/Investor
+            sessionData,          // full Q&A dataset
+            pricingResult,        // algorithm output
+            appliedModifiers,     // MARKET_GRAVITY_APPLIED, etc.
+            tier,                 // Basic/Professional/Investor
+            journeyType,          // established_seller / new_launcher
+            intelligenceData      // auto-intelligence data (optional)
         );
 
         // Normally, we'd save this to `prisma.report.create(...)` but we return the payload to the frontend.

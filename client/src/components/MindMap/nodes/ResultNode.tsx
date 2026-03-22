@@ -50,7 +50,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [emailInput, setEmailInput] = useState('');
     const [showPricing, setShowPricing] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
+    const [generatingTier, setGeneratingTier] = useState<'Basic' | 'Professional' | 'Investor' | null>(null);
 
     const isUnlocked = useSessionStore((s) => s.isUnlocked);
     const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
@@ -137,7 +137,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
     };
 
     const handleCheckout = async (tier: 'Basic' | 'Professional' | 'Investor') => {
-        setIsGenerating(true);
+        setGeneratingTier(tier);
         try {
             const fullSessionData = useSessionStore.getState();
 
@@ -146,7 +146,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
             const token = session?.access_token;
             if (!token) {
                 setShowAuthModal(true);
-                setIsGenerating(false);
+                setGeneratingTier(null);
                 return;
             }
 
@@ -187,7 +187,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
             console.error('Checkout error:', error);
             alert("Error connecting to payment provider. Please try again or check your backend.");
         } finally {
-            setIsGenerating(false);
+            setGeneratingTier(null);
         }
     };
 
@@ -412,10 +412,10 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                                             </div>
                                             <button
                                                 onClick={() => handleCheckout('Basic')}
-                                                disabled={isGenerating}
+                                                disabled={generatingTier !== null}
                                                 className="mt-5 w-full py-3 rounded-full bg-background-light dark:bg-background-dark text-slate-600 dark:text-slate-300 hover:text-text-light dark:hover:text-text-dark font-bold text-xs outer-shadow transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                                             >
-                                                {isGenerating ? 'Processing...' : 'Get Basic Report'}
+                                                {generatingTier === 'Basic' ? 'Processing...' : 'Get Basic Report'}
                                             </button>
                                         </div>
 
@@ -447,10 +447,10 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                                             </div>
                                             <button
                                                 onClick={() => handleCheckout('Professional')}
-                                                disabled={isGenerating}
+                                                disabled={generatingTier !== null}
                                                 className="mt-5 w-full py-3 rounded-full bg-[#DFA81C] hover:bg-[#c99517] text-white font-bold text-xs outer-shadow transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                                             >
-                                                {isGenerating ? 'Processing...' : 'Get Professional Report'}
+                                                {generatingTier === 'Professional' ? 'Processing...' : 'Get Professional Report'}
                                             </button>
                                         </div>
 
@@ -479,10 +479,10 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                                             </div>
                                             <button
                                                 onClick={() => handleCheckout('Investor')}
-                                                disabled={isGenerating}
+                                                disabled={generatingTier !== null}
                                                 className="mt-5 w-full py-3 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs outer-shadow transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                                             >
-                                                {isGenerating ? 'Processing...' : 'Get Investor Pack'}
+                                                {generatingTier === 'Investor' ? 'Processing...' : 'Get Investor Pack'}
                                             </button>
                                         </div>
                                     </div>

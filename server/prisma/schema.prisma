@@ -8,9 +8,10 @@ datasource db {
 }
 
 model Lead {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id             String   @id @default(uuid())
+  email          String   @unique
+  supabaseUserId String?  @unique
+  createdAt      DateTime @default(now())
   
   sessions  Session[]
 }
@@ -34,6 +35,9 @@ model Report {
   paymentStatus    String   @default("Pending")
   pdfUrl           String?
   verificationHash String?
+  createdAt        DateTime @default(now())
+  amountPaid       Float?
+  currency         String?
   
   session          Session  @relation(fields: [sessionId], references: [id])
 }

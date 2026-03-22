@@ -1,0 +1,5 @@
+[2026-03-04T05:00:46.798Z] [Prefill] URL: https://example.com | scrapingdogKey: SET (24 chars)
+[2026-03-04T05:00:46.801Z] [Prefill] Starting scrape+Claude chain for: https://example.com
+[2026-03-04T05:00:46.802Z] [Prefill] Scrapingdog key present: true | Anthropic key present: true
+[2026-03-04T05:00:48.133Z] [Prefill] Scrape done. HTML length: 528 | Sending to Claude...
+[2026-03-04T05:00:48.717Z] FALLBACK ERROR: 400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."},"request_id":"req_011CYhT9HpmAabgLsoibXL3q"} | status: 400

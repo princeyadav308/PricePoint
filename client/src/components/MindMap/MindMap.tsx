@@ -4,6 +4,7 @@ import 'reactflow/dist/style.css';
 
 import { useMindMapStore } from '../../store/useMindMapStore';
 import { useSessionStore } from '../../store/useSessionStore';
+import { useIntelligenceStore } from '../../store/useIntelligenceStore';
 import type { SessionStage } from '../../types/session';
 
 import { RootNode } from './nodes/RootNode';
@@ -32,8 +33,17 @@ const REQUIRED_BRANCHES: SessionStage[] = ['market_research', 'distribution', 'p
 const MindMapInner = () => {
     const { nodes, edges, onNodesChange, onEdgesChange, lastAddedNodeId, spawnConvergence } = useMindMapStore();
     const completedStages = useSessionStore((s) => s.completedStages);
+    const runGeolocate = useIntelligenceStore((s) => s.runGeolocate);
+    const geoStatus = useIntelligenceStore((s) => s.geoStatus);
     const { fitView, zoomIn, zoomOut } = useReactFlow();
     const prevNodeIdRef = useRef<string | null>(null);
+
+    // ── Auto-trigger geolocation on mount ────────────────────
+    useEffect(() => {
+        if (geoStatus === 'idle') {
+            runGeolocate();
+        }
+    }, [geoStatus, runGeolocate]);
 
     // ── Zoom control handlers ────────────────────────────────
     const handleZoomIn = useCallback(() => {
@@ -103,8 +113,8 @@ const MindMapInner = () => {
                 edgeTypes={edgeTypes}
                 fitView
                 fitViewOptions={{ padding: 0.2, maxZoom: 1.0 }}
-                minZoom={0.3}
-                maxZoom={2.0}
+                minZoom={0.1}
+                maxZoom={2.5}
                 defaultEdgeOptions={{ type: 'animatedEdge' }}
                 nodesDraggable={false}
                 nodesConnectable={false}

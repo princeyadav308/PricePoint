@@ -38,10 +38,14 @@ export default async function (server: FastifyInstance) {
 
             // Create or find a Lead using the verified user's secure token email
             const email = user.email || sessionData.user?.email || `guest_${Date.now()}@example.com`;
+            const supabaseUserId = user.id || null;
 
             let lead = await prisma.lead.findUnique({ where: { email } });
             if (!lead) {
-                lead = await prisma.lead.create({ data: { email } });
+                lead = await prisma.lead.create({ data: { email, supabaseUserId } });
+            } else if (supabaseUserId && !lead.supabaseUserId) {
+                // Backfill supabaseUserId if not yet stored
+                lead = await prisma.lead.update({ where: { email }, data: { supabaseUserId } });
             }
 
             // Attach the pricingResult to rawData so it survives page redirects!
@@ -178,7 +182,7 @@ export default async function (server: FastifyInstance) {
 
             // If it's already Paid or Failed, just return it
             if (report.paymentStatus !== 'Pending') {
-                return { paymentStatus: report.paymentStatus, sessionData: report.session?.rawData };
+                return { paymentStatus: report.paymentStatus, sessionData: report.session?.rawData, tier: report.tier };
             }
 
             // If it is pending, proactively check Dodo Payments (especially useful for localhost without webhooks)
@@ -199,12 +203,16 @@ export default async function (server: FastifyInstance) {
                         server.log.info(`Dodo checkout ${checkoutId} → payment_status: "${paymentStatus}"`);
 
                         if (['paid', 'succeeded', 'completed', 'complete'].includes(paymentStatus)) {
+                            // Extract payment amount from Dodo response
+                            const paidAmount = dodoData.total_amount ? parseFloat(dodoData.total_amount) / 100 : dodoData.amount ? parseFloat(dodoData.amount) : null;
+                            const paidCurrency = dodoData.currency || 'USD';
+
                             await prisma.report.update({
                                 where: { documentId },
-                                data: { paymentStatus: 'Paid' }
+                                data: { paymentStatus: 'Paid', amountPaid: paidAmount, currency: paidCurrency }
                             });
                             server.log.info(`✅ Report ${documentId} marked as PAID via proactive polling.`);
-                            return { paymentStatus: 'Paid', sessionData: report.session?.rawData as any };
+                            return { paymentStatus: 'Paid', sessionData: report.session?.rawData as any, tier: report.tier };
                         } else if (['failed', 'cancelled', 'expired'].includes(paymentStatus)) {
                             await prisma.report.update({
                                 where: { documentId },
@@ -219,7 +227,7 @@ export default async function (server: FastifyInstance) {
                 }
             }
 
-            return { paymentStatus: report.paymentStatus, sessionData: report.session?.rawData as any };
+            return { paymentStatus: report.paymentStatus, sessionData: report.session?.rawData as any, tier: report.tier };
         } catch (error) {
             server.log.error(error);
             return reply.status(500).send({ error: 'Failed to fetch status' });

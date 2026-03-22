@@ -15,6 +15,9 @@ export interface VanWestendorpResult {
     opp: number;          // Optimal Price Point
     floor: number;        // Price floor (below = quality concern)
     ceiling: number;      // Price ceiling (above = lost sales)
+    pmc: number;          // Point of Marginal Cheapness (= floor)
+    ipp: number;          // Indifference Price Point
+    pme: number;          // Point of Marginal Expensiveness (= ceiling)
 }
 
 export interface PricingResult {
@@ -40,7 +43,8 @@ function vanWestendorp(
     const opp = (bargain + expensive) / 2;
     const floor = (tooCheap + bargain) / 2;
     const ceiling = (expensive + tooExpensive) / 2;
-    return { opp, floor, ceiling };
+    const ipp = (tooCheap + tooExpensive) / 2; // Indifference Price Point
+    return { opp, floor, ceiling, pmc: floor, ipp, pme: ceiling };
 }
 
 // ── Extract total cost from unit economics table ─────────────

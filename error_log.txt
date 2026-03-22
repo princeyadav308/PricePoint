@@ -1,0 +1,7 @@
+Error: Could not resolve authentication method. Expected either apiKey or authToken to be set. Or for one of the "X-Api-Key" or "Authorization" headers to be explicitly omitted
+    at Anthropic.validateHeaders (C:\Users\Captain\Desktop\Captain\personal projects\PricePoint\server\node_modules\@anthropic-ai\sdk\client.js:117:15)
+    at Anthropic.buildHeaders (C:\Users\Captain\Desktop\Captain\personal projects\PricePoint\server\node_modules\@anthropic-ai\sdk\client.js:484:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Anthropic.buildRequest (C:\Users\Captain\Desktop\Captain\personal projects\PricePoint\server\node_modules\@anthropic-ai\sdk\client.js:446:28)
+    at async Anthropic.makeRequest (C:\Users\Captain\Desktop\Captain\personal projects\PricePoint\server\node_modules\@anthropic-ai\sdk\client.js:224:39)
+    at async checkModel (C:\Users\Captain\Desktop\Captain\personal projects\PricePoint\server\test-direct-api.js:11:26)

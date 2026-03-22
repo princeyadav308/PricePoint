@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../../store/useSessionStore';
 import { AuthModal } from '../AuthModal';
 import { supabase } from '../../lib/supabase';
@@ -13,6 +14,7 @@ const Header: React.FC<HeaderProps> = ({ isDark, toggleDarkMode }) => {
     const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
     const user = useSessionStore((s) => s.user);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const navigate = useNavigate();
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -44,10 +46,14 @@ const Header: React.FC<HeaderProps> = ({ isDark, toggleDarkMode }) => {
                     {/* Auth Controls */}
                     {isAuthenticated ? (
                         <div className="flex items-center gap-2 outer-shadow rounded-xl bg-background-light dark:bg-background-dark border border-gray-100 dark:border-gray-700/30 p-1">
-                            <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-lg text-primary truncate max-w-[120px] md:max-w-[200px]">
+                            <button
+                                onClick={() => navigate('/profile')}
+                                className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-lg text-primary truncate max-w-[120px] md:max-w-[200px] hover:bg-primary/20 transition-colors cursor-pointer"
+                                title="Go to Profile"
+                            >
                                 <User size={14} />
                                 <span className="text-xs font-bold truncate">{user?.email}</span>
-                            </div>
+                            </button>
                             <button
                                 onClick={handleSignOut}
                                 className="hover-in-shadow p-2 rounded-lg text-slate-400 hover:text-red-500 transition-colors"

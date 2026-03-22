@@ -4,6 +4,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { PricingReportPDF } from '../components/PricingReportPDF';
 import { CheckCircle2, Loader2, ArrowRight, ShieldCheck, X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { getCurrencyFromAnswers } from '../utils/currency';
 
 export default function Success() {
     const [searchParams] = useSearchParams();
@@ -13,8 +15,29 @@ export default function Success() {
     const [status, setStatus] = useState<'polling' | 'verified' | 'generating' | 'ready' | 'error'>('polling');
     const [pollCount, setPollCount] = useState(0);
     const [reportPayload, setReportPayload] = useState<{ claudeData: any } | null>(null);
+    const [savedTier, setSavedTier] = useState<string>('Basic');
 
     const [savedSessionData, setSavedSessionData] = useState<any>(null);
+
+    // Non-blocking email sender — fires and forgets
+    const sendReportEmail = async (docId: string) => {
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+            if (!token) return; // Not authenticated, skip email
+
+            await fetch('http://127.0.0.1:3000/api/reports/send-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ documentId: docId })
+            });
+        } catch (err) {
+            console.warn('Email send failed (non-blocking):', err);
+        }
+    };
 
     // Poll the backend to check if Dodo Webhook arrived
     useEffect(() => {
@@ -33,7 +56,16 @@ export default function Success() {
                 if (data.paymentStatus === 'Paid') {
                     // Payment confirmed! Store data and show checkmark first
                     setSavedSessionData(data.sessionData);
+                    setSavedTier(data.tier || 'Basic');
                     setStatus('verified');
+
+                    // ── DEBUG: Log raw MindMap answer keys ──
+                    console.log('═══ MINDMAP RAW KEYS ═══');
+                    console.log('savedSessionData:', JSON.stringify(data.sessionData, null, 2));
+                    if (data.sessionData?.answers) {
+                        console.log('Answer keys:', Object.keys(data.sessionData.answers));
+                    }
+                    console.log('═══ END MINDMAP KEYS ═══');
                 } else {
                     // Still waiting (Max 30 retries = 90 seconds)
                     if (pollCount >= 30) {
@@ -74,7 +106,7 @@ export default function Success() {
                         sessionData: savedSessionData,
                         pricingResult: savedSessionData.pricingResult,
                         appliedModifiers: savedSessionData.pricingResult?.appliedModifiers || [],
-                        tier: 'Investor'
+                        tier: savedTier
                     })
                 });
 
@@ -83,30 +115,30 @@ export default function Success() {
                 // Even if Claude returned fallback text (no credits), still show PDF
                 setReportPayload({
                     claudeData: data.claudeData || {
-                        executiveSummary: 'AI analysis temporarily unavailable. Please retry once credits are loaded.',
-                        marketAnalysis: 'Data pending.',
-                        competitivePositioning: 'Data pending.',
-                        pricingDefensibility: 'Data pending.',
-                        riskFactors: 'Data pending.',
-                        implementationRoadmap: 'Data pending.',
-                        methodology: 'Data pending.'
+                        report_meta: { journey_type: 'unknown', tier: savedTier.toLowerCase(), one_line_verdict: 'AI analysis temporarily unavailable.' },
+                        executive_summary: { headline: 'Report Pending', summary: 'AI analysis temporarily unavailable. Please retry once credits are loaded.', pricing_verdict: {} },
+                        next_steps: ['Retry report generation']
                     },
                 });
 
+                // ── DEBUG: Log Claude response keys ──
+                console.log('═══ CLAUDE RESPONSE KEYS ═══');
+                console.log('Claude data:', JSON.stringify(data.claudeData, null, 2));
+                console.log('═══ END CLAUDE KEYS ═══');
+
                 setStatus('ready');
+
+                // Non-blocking: send report email to user
+                sendReportEmail(documentId!);
 
             } catch (error) {
                 console.error("AI Generation Error:", error);
                 // NON-FATAL: Still show PDF with fallback text
                 setReportPayload({
                     claudeData: {
-                        executiveSummary: 'AI analysis could not be generated due to a network error. Your pricing data is still available below.',
-                        marketAnalysis: 'Unavailable.',
-                        competitivePositioning: 'Unavailable.',
-                        pricingDefensibility: 'Unavailable.',
-                        riskFactors: 'Unavailable.',
-                        implementationRoadmap: 'Unavailable.',
-                        methodology: 'Unavailable.'
+                        report_meta: { journey_type: 'unknown', tier: savedTier.toLowerCase(), one_line_verdict: 'Network error occurred.' },
+                        executive_summary: { headline: 'Report Unavailable', summary: 'AI analysis could not be generated due to a network error. Your pricing data is still available below.', pricing_verdict: {} },
+                        next_steps: ['Retry report generation', 'Contact support if issue persists']
                     },
                 });
                 setStatus('ready');
@@ -204,29 +236,54 @@ export default function Success() {
                             Intelligence Ready
                         </h2>
                         <p className="text-slate-500 mb-8 leading-relaxed max-w-sm mx-auto">
-                            Your bespoke pricing strategy has been assembled securely. Download your premium PDF below.
+                            Your bespoke pricing strategy has been assembled securely. You can download your premium PDF below, and a copy has also been sent to your email.
                         </p>
 
-                        <PDFDownloadLink
-                            document={
-                                <PricingReportPDF
-                                    documentId={documentId || 'PPRT-0000'}
-                                    claudeData={reportPayload.claudeData}
-                                    pricingResult={savedSessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } }}
-                                    sessionData={savedSessionData || {}}
-                                    journeyType={savedSessionData?.journeyType || 'Pricing Strategy'}
-                                />
-                            }
-                            fileName={`PricePoint_Intelligence_${documentId}.pdf`}
-                            className="w-full py-5 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-lg outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 tracking-wide mb-4"
-                        >
-                            {/* @ts-ignore */}
-                            {({ loading }) => (
-                                <>
-                                    {loading ? <Loader2 size={24} className="animate-spin" /> : 'Download Premium Report'}
-                                </>
-                            )}
-                        </PDFDownloadLink>
+                        {(() => {
+                            const cd = reportPayload.claudeData;
+                            const FALLBACK_HEADLINES = ["Report Unavailable", "An error occurred", "Report generation failed", "Report Pending"];
+                            const isReportReady = cd !== null &&
+                                typeof cd?.executive_summary === 'object' &&
+                                typeof cd.executive_summary.headline === 'string' &&
+                                cd.executive_summary.headline.length > 10 &&
+                                !FALLBACK_HEADLINES.some(f => cd.executive_summary.headline.includes(f));
+
+                            const currencySymbol = savedSessionData?.answers
+                                ? getCurrencyFromAnswers(savedSessionData.answers)
+                                : '$';
+
+                            return isReportReady ? (
+                            <PDFDownloadLink
+                                document={
+                                    <PricingReportPDF
+                                        documentId={documentId || 'PPRT-0000'}
+                                        claudeData={reportPayload.claudeData}
+                                        pricingResult={savedSessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } }}
+                                        sessionData={savedSessionData || {}}
+                                        journeyType={savedSessionData?.journeyType || 'Pricing Strategy'}
+                                        tier={savedTier}
+                                        currencySymbol={currencySymbol}
+                                    />
+                                }
+                                fileName={`PricePoint_Intelligence_${documentId}.pdf`}
+                                className="w-full py-5 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-lg outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 tracking-wide mb-4"
+                            >
+                                {/* @ts-ignore */}
+                                {({ loading }) => (
+                                    <>
+                                        {loading ? <Loader2 size={24} className="animate-spin" /> : 'Download Premium Report'}
+                                    </>
+                                )}
+                            </PDFDownloadLink>
+                            ) : (
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="w-full py-5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 font-bold text-lg flex items-center justify-center gap-2 mb-4 transition-all active:scale-95"
+                            >
+                                <X size={24} /> Generation Failed — Try Again
+                            </button>
+                            );
+                        })()}
 
                         <button
                             onClick={() => navigate('/')}

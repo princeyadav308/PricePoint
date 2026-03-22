@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App.tsx'
 import Success from './pages/Success.tsx'
+import ProfilePage from './pages/ProfilePage.tsx'
 import './index.css'
 
 // ── DEV HELPER: expose stores for console-driven testing ──
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/success" element={<Success />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
