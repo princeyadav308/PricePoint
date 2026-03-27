@@ -1,0 +1,50 @@
+LayerToolRoleAI BrainClaude SonnetGenerate all data, analysis, narrativeCharts/GraphsChart.js or RechartsRender charts in-browser (free, full control)PDF EnginePuppeteer or WeasyPrintConvert styled HTML → pixel-perfect PDFDesignCustom HTML/CSS templateFull investor-grade design control
+This means:
+
+No dependency on Infogram's API limits
+Full design control — looks exactly how you want
+Cheaper — no per-export Infogram fees
+Faster — everything in your own pipeline
+Charts and infographics render beautifully from Chart.js before PDF export
+
+
+
+the HTML → Puppeteer PDF pipeline is the fastest path to investor-grade output. I can help you build:
+
+A Claude prompt that outputs structured JSON (pricing data, unit economics, market analysis)
+A beautiful HTML report template with Chart.js graphs, data tables, infographics
+A Puppeteer script that converts it to a polished PDF
+
+
+
+Here's the Voya design system already in your project: template 1.pdf
+
+Colors (HSL via CSS variables)
+Token	Value	Usage
+--voya-orange	18 83% 55%	Primary brand, headings, accents, dividers
+--voya-teal	190 40% 35%	Secondary accent, stat numbers
+--voya-dark	0 0% 20%	Body text, foreground
+--voya-gray	0 0% 45%	Muted/secondary text
+--voya-light-gray	0 0% 96%	Backgrounds, muted areas
+--voya-table-header	0 0% 40%	Table header bg (white text)
+--voya-table-stripe	0 0% 97%	Alternating table rows
+Typography
+Font: Source Sans 3 (weights: 300, 400, 600, 700)
+Section titles: text-2xl font-light in orange
+Subsection titles: text-base font-bold in foreground
+Body: text-[15px] leading-relaxed
+Footnotes: text-xs text-muted-foreground
+Stats: text-3xl font-bold in teal
+Layout Classes
+Class	Purpose
+.voya-page	Page container: max-w-[1100px] mx-auto px-12 py-10
+.voya-page-header	Top label with border-bottom
+.voya-divider	Orange border-t-2 separator
+.voya-two-col	2-column responsive grid (gap-8)
+.voya-table	Styled table with header + striping
+.voya-page-number	Right-aligned page number
+Component Patterns
+Cover: Full-width hero image → title with orange highlight → team grid → logo
+Content pages: PageHeader → section title → two-column body → footnotes → PageNumber
+Tables: Dark header row, alternating stripe, text-sm
+Stats: Teal number + unit + description

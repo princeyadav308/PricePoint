@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store/useSessionStore';
 import { supabase } from '../lib/supabase';
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import { PricingReportPDF } from '../components/PricingReportPDF';
 import {
     User, LogOut, FileText, Calendar, CreditCard,
     ChevronRight, ArrowLeft, Download, Loader2, Crown,
@@ -268,9 +266,7 @@ export default function ProfilePage() {
 /* ──────────────── REPORT CARD COMPONENT ──────────────── */
 
 function ReportCard({ report }: { report: UserReport }) {
-    const [reportData, setReportData] = useState<any>(null);
     const [loadingData, setLoadingData] = useState(false);
-    const [claudeData, setClaudeData] = useState<any>(null);
 
     const getAuthToken = async () => {
         const { data } = await supabase.auth.getSession();
@@ -278,8 +274,6 @@ function ReportCard({ report }: { report: UserReport }) {
     };
 
     const handleDownload = async () => {
-        if (reportData && claudeData) return; // Already loaded
-
         setLoadingData(true);
         try {
             const token = await getAuthToken();
@@ -297,9 +291,7 @@ function ReportCard({ report }: { report: UserReport }) {
                 return;
             }
 
-            setReportData(data.report);
-
-            // 2. Generate Claude narrative for PDF
+            // 2. Generate Claude narrative
             const genRes = await fetch(`${API_BASE}/api/generate-report`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -312,13 +304,32 @@ function ReportCard({ report }: { report: UserReport }) {
             });
             const genData = await genRes.json();
 
-            setClaudeData(genData.claudeData || {
+            const claudeData = genData.claudeData || {
                 report_meta: { journey_type: 'unknown', tier: data.report.tier.toLowerCase(), one_line_verdict: 'Report data available.' },
                 executive_summary: { headline: 'Report', summary: 'Report data loaded from archive.', pricing_verdict: {} },
                 next_steps: ['Review pricing strategy']
+            };
+
+            // 3. Generate PDF via Puppeteer endpoint
+            const pdfRes = await fetch(`${API_BASE}/api/generate-pdf`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    claudeData,
+                    pricingResult: data.report.sessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } },
+                    sessionData: data.report.sessionData || {},
+                    tier: report.tier
+                })
             });
+            const blob = await pdfRes.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `PricePoint_Intelligence_${report.documentId}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
         } catch (err) {
-            console.error('Error loading report for download:', err);
+            console.error('Error generating report PDF:', err);
         } finally {
             setLoadingData(false);
         }
@@ -387,45 +398,17 @@ function ReportCard({ report }: { report: UserReport }) {
 
             {/* Download Section */}
             <div className="px-5 pb-5">
-                {claudeData && reportData ? (
-                    <PDFDownloadLink
-                        document={
-                            <PricingReportPDF
-                                documentId={report.documentId}
-                                claudeData={claudeData}
-                                pricingResult={reportData.sessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } }}
-                                sessionData={reportData.sessionData || {}}
-                                journeyType={reportData.journeyType || 'Pricing Strategy'}
-                                tier={report.tier}
-                            />
-                        }
-                        fileName={`PricePoint_Intelligence_${report.documentId}.pdf`}
-                        className="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2"
-                    >
-                        {/* @ts-ignore */}
-                        {({ loading: pdfLoading }) => (
-                            <>
-                                {pdfLoading ? (
-                                    <><Loader2 size={16} className="animate-spin" /> Preparing PDF...</>
-                                ) : (
-                                    <><Download size={16} /> Download Report</>
-                                )}
-                            </>
-                        )}
-                    </PDFDownloadLink>
-                ) : (
-                    <button
-                        onClick={handleDownload}
-                        disabled={loadingData}
-                        className="w-full py-3.5 rounded-xl bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-bold text-sm hover-in-shadow active:active-pressed disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                        {loadingData ? (
-                            <><Loader2 size={16} className="animate-spin" /> Generating Report...</>
-                        ) : (
-                            <><Download size={16} /> Prepare Download</>
-                        )}
-                    </button>
-                )}
+                <button
+                    onClick={handleDownload}
+                    disabled={loadingData}
+                    className="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    {loadingData ? (
+                        <><Loader2 size={16} className="animate-spin" /> Generating PDF...</>
+                    ) : (
+                        <><Download size={16} /> Download Report</>
+                    )}
+                </button>
             </div>
         </div>
     );

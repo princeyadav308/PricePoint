@@ -3,6 +3,8 @@ import cors from '@fastify/cors';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import { generatePricingReport } from './utils/claude';
+import puppeteer from 'puppeteer';
+import { generateHTMLTemplate } from './utils/pdfTemplate';
 
 // Import New Phase 4 routes
 import reportRoutes from './routes/reports';
@@ -69,6 +71,67 @@ server.post('/api/generate-report', async (request, reply) => {
     } catch (error) {
         server.log.error(error);
         return reply.status(500).send({ error: 'Failed to generate report' });
+    }
+});
+
+// ── Puppeteer PDF Generation Endpoint ───────────────────────────────────
+server.post('/api/generate-pdf', async (request, reply) => {
+    let browser;
+    try {
+        const { claudeData, pricingResult, sessionData, tier } = request.body as any;
+
+        // Validate required data
+        if (!claudeData || !sessionData) {
+            return reply.status(400).send({ error: 'Missing required data: claudeData or sessionData' });
+        }
+
+        // Generate HTML from template
+        const htmlContent = generateHTMLTemplate({
+            claudeData,
+            pricingResult,
+            sessionData,
+            tier: tier || 'Basic'
+        });
+
+        // Launch Puppeteer
+        browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+
+        const page = await browser.newPage();
+
+        // Set content and wait for fonts to load
+        await page.setContent(htmlContent, {
+            waitUntil: 'networkidle0'
+        });
+
+        // Generate PDF with footer and margins
+        const pdf = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '20mm', right: '0', bottom: '25mm', left: '0' },
+            displayHeaderFooter: true,
+            headerTemplate: '<span></span>',
+            footerTemplate: `
+                <div style="width: 100%; padding: 0 48px; font-family: 'Source Sans 3', 'Inter', sans-serif; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #D1D5DB; padding-top: 8px; font-size: 9px; color: #6B7280;">
+                    <span>PricePoint Intelligence Report</span>
+                    <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+                </div>
+            `,
+        });
+
+        await browser.close();
+
+        // Return PDF as binary response
+        reply.type('application/pdf');
+        reply.header('Content-Disposition', `attachment; filename="PricePoint_Report_${sessionData?.answers?.projectName?.value || 'Document'}.pdf"`);
+        return reply.send(pdf);
+
+    } catch (error) {
+        server.log.error(error);
+        if (browser) await browser.close();
+        return reply.status(500).send({ error: 'Failed to generate PDF' });
     }
 });
 const start = async () => {

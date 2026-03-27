@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-// useSessionStore no longer needed — data comes from DB via savedSessionData
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import { PricingReportPDF } from '../components/PricingReportPDF';
-import { CheckCircle2, Loader2, ArrowRight, ShieldCheck, X } from 'lucide-react';
+import { CheckCircle2, Loader2, ArrowRight, ShieldCheck, X, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getCurrencyFromAnswers } from '../utils/currency';
 
 export default function Success() {
     const [searchParams] = useSearchParams();
@@ -16,6 +12,7 @@ export default function Success() {
     const [pollCount, setPollCount] = useState(0);
     const [reportPayload, setReportPayload] = useState<{ claudeData: any } | null>(null);
     const [savedTier, setSavedTier] = useState<string>('Basic');
+    const [pdfLoading, setPdfLoading] = useState(false);
 
     const [savedSessionData, setSavedSessionData] = useState<any>(null);
 
@@ -248,33 +245,41 @@ export default function Success() {
                                 cd.executive_summary.headline.length > 10 &&
                                 !FALLBACK_HEADLINES.some(f => cd.executive_summary.headline.includes(f));
 
-                            const currencySymbol = savedSessionData?.answers
-                                ? getCurrencyFromAnswers(savedSessionData.answers)
-                                : '$';
+                            const handleDownloadPDF = async () => {
+                                setPdfLoading(true);
+                                try {
+                                    const res = await fetch('http://127.0.0.1:3000/api/generate-pdf', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            claudeData: reportPayload.claudeData,
+                                            pricingResult: savedSessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } },
+                                            sessionData: savedSessionData || {},
+                                            tier: savedTier
+                                        })
+                                    });
+                                    const blob = await res.blob();
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `PricePoint_Intelligence_${documentId}.pdf`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                } catch (err) {
+                                    console.error('PDF download error:', err);
+                                } finally {
+                                    setPdfLoading(false);
+                                }
+                            };
 
                             return isReportReady ? (
-                            <PDFDownloadLink
-                                document={
-                                    <PricingReportPDF
-                                        documentId={documentId || 'PPRT-0000'}
-                                        claudeData={reportPayload.claudeData}
-                                        pricingResult={savedSessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } }}
-                                        sessionData={savedSessionData || {}}
-                                        journeyType={savedSessionData?.journeyType || 'Pricing Strategy'}
-                                        tier={savedTier}
-                                        currencySymbol={currencySymbol}
-                                    />
-                                }
-                                fileName={`PricePoint_Intelligence_${documentId}.pdf`}
-                                className="w-full py-5 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-lg outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 tracking-wide mb-4"
+                            <button
+                                onClick={handleDownloadPDF}
+                                disabled={pdfLoading}
+                                className="w-full py-5 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-lg outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 tracking-wide mb-4 disabled:opacity-70"
                             >
-                                {/* @ts-ignore */}
-                                {({ loading }) => (
-                                    <>
-                                        {loading ? <Loader2 size={24} className="animate-spin" /> : 'Download Premium Report'}
-                                    </>
-                                )}
-                            </PDFDownloadLink>
+                                {pdfLoading ? <><Loader2 size={24} className="animate-spin" /> Generating PDF...</> : <><Download size={24} /> Download Premium Report</>}
+                            </button>
                             ) : (
                             <button
                                 onClick={() => window.location.reload()}

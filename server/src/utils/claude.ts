@@ -252,7 +252,6 @@ Return a JSON object with exactly these keys:
 }`;
     } else {
         // Investor Grade
-        schemaInstruction = `
         if (investorSubTier === 'narrative') {
             schemaInstruction = `
 Return a JSON object with exactly these keys:
@@ -358,7 +357,7 @@ export const generatePricingReport = async (
 ) => {
     const generateStream = (systemPromptText: string, userPromptText: string, maxTokensAllocated: number) => new Promise<string>(async (resolve, reject) => {
         const timeoutMs = parseInt(process.env.CLAUDE_TIMEOUT_MS || '300000');
-        let timer: NodeJS.Timeout;
+        let timer: NodeJS.Timeout | undefined;
         const resetTimer = () => {
             if (timer) clearTimeout(timer);
             timer = setTimeout(() => reject(new Error('Report generation timed out (idle)')), timeoutMs);
