@@ -120,33 +120,52 @@ CRITICAL RULES:
     let tierLens = '';
     switch (tier) {
         case 'Investor':
-            tierLens = `\n\nREPORT DEPTH: INVESTOR GRADE. This is the maximum depth report. You must act as a Senior Partner at McKinsey's Pricing & Commercial Excellence Practice. Include:
+            tierLens = `\n\nREPORT DEPTH: INVESTOR GRADE (32-38 pages). This is the maximum depth report. You must act as a Senior Partner at McKinsey's Pricing & Commercial Excellence Practice. Include:
+- 2-page investment thesis (long-form narrative justifying the pricing strategy for investors)
+- Key findings summary (5 distinct strategic bullets)
 - Complete financial scenario modeling (Conservative/Base/Optimistic)
 - chart_data arrays with actual calculated numbers for visualizations
-- Full investor narrative with pricing thesis, defensibility statement, and comparable companies
-- 7-10 item risk matrix with category, severity, probability, and mitigation
-- 4-phase implementation roadmap (Foundation, Launch, Optimize, Scale)
-- Deep unit economics with LTV:CAC ratios, payback periods, and Rule of 40 scoring
+- Market timing assessment (why now is the right time)
+- Feature-to-price mapping (which features drive price perception)
+- Competitive moat assessment with durability rating
+- Full investor narrative with pricing thesis, defensibility statement, and comparable companies with pricing details
+- Packaging recommendation (bundle strategy, tier structure rationale)
+- Price increase strategy with 12-month timeline
+- Margin erosion audit (leakage sources, annual impact, fixes)
+- Rule of 40 scoring (growth rate + profit margin)
+- 7-10 item risk matrix with category, severity, probability, impact, and mitigation
+- 4-phase implementation roadmap (Foundation, Launch, Optimize, Scale) covering 18 months
+- Investor questions to prepare for (5-7 with prepared answers)
+- Glossary of 20-25 pricing terms
 - TAM/SAM/SOM analysis
 - Board-room language throughout`;
             break;
         case 'Professional':
-            tierLens = `\n\nREPORT DEPTH: FOUNDER READY. Provide a thorough analysis with:
-- Full market analysis and unit economics
-- Pricing strategy with tier suggestions
-- Competitive benchmark table
-- 5-7 item risk matrix
+            tierLens = `\n\nREPORT DEPTH: FOUNDER READY (18-22 pages). Provide a thorough analysis with:
+- Strategic verdict card (headline verdict, body explanation, confidence badge)
+- Full market analysis with TAM/SAM narrative and positioning map data
+- Competitive benchmark table (5 rows minimum)
+- Unit economics with LTV:CAC ratios, payback periods, and health scoring
+- Pricing strategy with tier suggestions and launch vs. scale pricing path
+- Cost of inaction calculation (bold headline number, calculation, narrative)
+- 90-day monitoring plan with 3 specific metrics, targets, warning thresholds, and action triggers
+- Revenue scenario table (Conservative/Base/Optimistic with MRR, ARR, Gross Profit, Implied CAC)
+- 5-7 item risk matrix with category, severity, probability, and mitigation
 - 3-phase implementation roadmap (Launch, Optimize, Scale)
-- LTV:CAC commentary and health scoring`;
+- Write substantial paragraphs — this report must fill 18-22 pages`;
             break;
         case 'Basic':
         default:
-            tierLens = `\n\nREPORT DEPTH: BASIC. Focus on core insights:
-- Clear executive summary with pricing verdict
-- Survival/Best/Premium price commentary
-- Top 3 risks
-- 3 actionable next steps
-- Be concise and fact-based`;
+            tierLens = `\n\nREPORT DEPTH: STARTER (8-10 pages). Focus on core insights with enough detail to fill 8-10 pages:
+- Clear executive summary with pricing verdict (1 full page)
+- Van Westendorp interpretation (explain what the PSM chart means for their product)
+- Cost breakdown narrative (analyze their unit cost structure and gross margin)
+- Survival/Best/Premium price commentary (substantial paragraphs, not bullet points)
+- Breakeven analysis context
+- Top 3 risks with detailed mitigations
+- 5 actionable next steps (numbered, with specific actions)
+- Cost of inaction (one bold sentence showing the revenue gap between entry and optimal pricing)
+- Write in advisory tone, not bullet points. Each section should be 2-3 paragraphs minimum.`;
     }
 
     const truncationWarning = `\n\nCRITICAL: If approaching token limit, write shorter paragraphs. NEVER truncate closing braces or brackets. Incomplete JSON is worse than brief JSON.`;
@@ -231,24 +250,31 @@ function buildUserPrompt(
 Return a JSON object with exactly these keys:
 {
   "report_meta": { "journey_type": string, "tier": "basic", "one_line_verdict": string (max 25 words) },
-  "executive_summary": { "headline": string, "summary": string (3 paragraphs), "pricing_verdict": { "recommended_price": number, "recommended_model": string, "confidence_level": "High"|"Medium"|"Low", "confidence_rationale": string } },
-  "pricing_analysis": { "survival_commentary": string, "best_price_commentary": string, "premium_price_commentary": string, "recommended_anchor": "survival"|"best"|"premium", "anchor_rationale": string },
-  "top_risks": [ { "risk": string, "severity": "High"|"Medium"|"Low", "mitigation": string } ] (3 max),
-  "next_steps": [ string ] (3 actionable steps)
+  "executive_summary": { "headline": string (bold, 1 sentence), "summary": string (3 substantial paragraphs: situation, key finding, recommended action), "pricing_verdict": { "recommended_price": number, "recommended_model": string, "confidence_level": "High"|"Medium"|"Low", "confidence_rationale": string } },
+  "van_westendorp_interpretation": string (2 paragraphs explaining what the Van Westendorp PSM chart means for their specific product — reference OPP, IPP, PMC, PME by name and explain the optimal pricing zone),
+  "cost_breakdown_narrative": string (2 paragraphs analyzing their unit cost structure, identifying the largest cost drivers, and explaining how costs relate to the recommended price),
+  "gross_margin_commentary": string (1-2 paragraphs on gross margin health and what it means for sustainability),
+  "pricing_analysis": { "survival_commentary": string (2 paragraphs), "best_price_commentary": string (2 paragraphs), "premium_price_commentary": string (2 paragraphs), "recommended_anchor": "survival"|"best"|"premium", "anchor_rationale": string (2 paragraphs) },
+  "cost_of_inaction": string (one bold calculation sentence, e.g. "Launching at Entry Price instead of Optimal costs you X in annual revenue at Y customers/month — a Z annual gap."),
+  "top_risks": [ { "risk": string, "severity": "High"|"Medium"|"Low", "mitigation": string (2-3 sentences) } ] (3 risks),
+  "next_steps": [ string ] (5 actionable steps, each 1-2 sentences with specific actions)
 }`;
     } else if (tier === 'Professional') {
         schemaInstruction = `
 Return a JSON object with exactly these keys:
 {
   "report_meta": { "journey_type": string, "tier": "founder_ready", "one_line_verdict": string },
-  "executive_summary": { "headline": string, "summary": string (4 paragraphs), "pricing_verdict": { "recommended_price": number, "recommended_model": string, "confidence_level": string, "confidence_rationale": string, "price_range_floor": number, "price_range_ceiling": number } },
-  "market_analysis": { "market_narrative": string (2 paragraphs), "competitive_landscape": string (2 paragraphs), "positioning_recommendation": string, "willingness_to_pay_analysis": string (reference Van Westendorp) },
+  "executive_summary": { "headline": string (bold, 1 sentence), "summary": string (4 substantial paragraphs), "pricing_verdict": { "recommended_price": number, "recommended_model": string, "confidence_level": string, "confidence_rationale": string, "price_range_floor": number, "price_range_ceiling": number } },
+  "strategic_verdict": { "headline": string (1 bold sentence verdict), "body": string (2-3 paragraph explanation of why this verdict), "confidence_badge": "High"|"Medium"|"Low" },
+  "market_analysis": { "market_narrative": string (3 paragraphs), "competitive_landscape": string (2 paragraphs), "positioning_recommendation": string, "willingness_to_pay_analysis": string (reference Van Westendorp PSM points), "tam_sam_narrative": string (2 paragraphs sizing the total addressable and serviceable market), "positioning_map": [ { "name": string (competitor or "Your Product"), "price": number, "value_score": number (1-10) } ] (5-8 data points including "Your Product") },
   "unit_economics": { "narrative": string (2 paragraphs), "gross_margin_analysis": string, "estimated_ltv": number, "estimated_ltv_cac_ratio": number, "payback_period_months": number, "health_score": "Strong"|"Acceptable"|"Needs Attention"|"Critical", "health_rationale": string },
-  "pricing_strategy": { "strategy_narrative": string, "recommended_model": string, "pricing_tiers_suggestion": [ { "tier_name": string, "price": number, "target_segment": string, "key_value_prop": string } ], "launch_price_recommendation": number, "launch_price_rationale": string },
-  "competitive_positioning": { "narrative": string, "position": "Price Leader"|"Value Player"|"Premium"|"Ultra Premium", "benchmark_table": [ { "competitor": string, "estimated_price": string, "positioning": string, "your_advantage": string } ] },
-  "risk_matrix": [ { "risk": string, "category": "Market"|"Competitive"|"Execution"|"Financial"|"Product", "severity": string, "probability": string, "mitigation": string } ] (5-7 risks),
-  "implementation_roadmap": { "narrative": string, "phases": [ { "phase": number, "title": string, "duration": string, "key_actions": [string], "success_metric": string } ] (3 phases) },
-  "next_steps": [ string ] (5 actions)
+  "pricing_strategy": { "strategy_narrative": string (3 paragraphs), "recommended_model": string, "pricing_tiers_suggestion": [ { "tier_name": string, "price": number, "target_segment": string, "key_value_prop": string } ], "launch_price_recommendation": number, "launch_price_rationale": string (2 paragraphs), "launch_vs_scale": { "launch_rationale": string (2 paragraphs on why to start at launch price), "scale_path": string (2 paragraphs on the path to scale pricing), "transition_trigger": string (specific metric/milestone that triggers the transition) } },
+  "cost_of_inaction": { "headline_number": string (the big delta number, e.g. "24.75M annual gap"), "calculation": string (the full calculation sentence), "narrative": string (1-2 paragraphs explaining the urgency) },
+  "competitive_positioning": { "narrative": string (2 paragraphs), "position": "Price Leader"|"Value Player"|"Premium"|"Ultra Premium", "benchmark_table": [ { "competitor": string, "estimated_price": string, "positioning": string, "your_advantage": string } ] (5 rows minimum) },
+  "monitoring_plan": [ { "metric": string, "target": string, "warning_threshold": string, "action": string (specific action with numbers) } ] (exactly 3 metrics: conversion rate, CAC, refund/churn rate),
+  "risk_matrix": [ { "risk": string, "category": "Market"|"Competitive"|"Execution"|"Financial"|"Product", "severity": string, "probability": string, "mitigation": string (2-3 sentences) } ] (5-7 risks),
+  "implementation_roadmap": { "narrative": string (2 paragraphs), "phases": [ { "phase": number, "title": string, "duration": string, "key_actions": [string] (4-5 actions), "success_metric": string } ] (3 phases) },
+  "next_steps": [ string ] (5 prioritised actions, each 1-2 sentences)
 }`;
     } else {
         // Investor Grade
@@ -257,26 +283,31 @@ Return a JSON object with exactly these keys:
 Return a JSON object with exactly these keys:
 {
   "report_meta": { "journey_type": string, "tier": "investor_grade", "one_line_verdict": string, "report_thesis": string (2-3 sentence thesis) },
-  "executive_summary": { "headline": string, "summary": string (5 paragraphs, board-room language), "pricing_verdict": { "recommended_price": number, "recommended_model": string, "confidence_level": string, "confidence_rationale": string, "price_range_floor": number, "price_range_ceiling": number, "upside_scenario_price": number, "downside_scenario_price": number }, "key_findings": [string] (5 bullets) },
-  "market_analysis": { "market_narrative": string (3 paragraphs), "tam_analysis": string, "willingness_to_pay_analysis": string (deep Van Westendorp), "price_sensitivity_narrative": string, "competitive_landscape": string (3 paragraphs) },
-  "pricing_strategy": { "strategy_narrative": string (4 paragraphs), "recommended_model": string, "pricing_tiers_suggestion": [ { "tier_name": string, "price": number, "target_segment": string, "key_value_prop": string, "expected_conversion_rate": string } ], "launch_price_recommendation": number, "launch_price_rationale": string, "expansion_price_path": string, "packaging_recommendation": string },
-  "competitive_positioning": { "narrative": string (3 paragraphs), "position": string, "competitive_moat_assessment": string, "moat_durability": "Strong"|"Moderate"|"Weak", "benchmark_table": [ { "competitor": string, "estimated_price": string, "pricing_model": string, "positioning": string, "your_advantage": string, "threat_level": string } ], "white_space_opportunity": string },
-  "investor_narrative": { "pricing_thesis": string (3 paragraphs), "defensibility_statement": string, "growth_lever_analysis": string, "comparable_companies": [ { "company": string, "pricing_model": string, "key_lesson": string } ], "red_flags_to_address": [string], "investor_questions_to_prepare": [string] },
+  "investment_thesis": string (LONG — 6-8 substantial paragraphs forming a 2-page investment thesis. Cover: market opportunity, pricing power analysis, competitive defensibility, unit economics thesis, growth trajectory, risk-adjusted return potential. This is the section an investor reads first. Write in board-room language.),
+  "executive_summary": { "headline": string, "summary": string (5 paragraphs, board-room language), "pricing_verdict": { "recommended_price": number, "recommended_model": string, "confidence_level": string, "confidence_rationale": string, "price_range_floor": number, "price_range_ceiling": number, "upside_scenario_price": number, "downside_scenario_price": number }, "key_findings": [string] (5 strategic bullets — distinct from the summary) },
+  "market_analysis": { "market_narrative": string (3 paragraphs), "tam_analysis": string (2 paragraphs with TAM/SAM/SOM estimates), "willingness_to_pay_analysis": string (deep Van Westendorp interpretation), "price_sensitivity_narrative": string, "competitive_landscape": string (3 paragraphs), "market_timing_assessment": string (2 paragraphs on why now is the right/wrong time to launch at this price), "feature_price_mapping": [ { "feature": string, "price_impact": string (e.g. "+15% WTP"), "customer_priority": "High"|"Medium"|"Low" } ] (5-8 features) },
+  "pricing_strategy": { "strategy_narrative": string (4 paragraphs), "recommended_model": string, "pricing_tiers_suggestion": [ { "tier_name": string, "price": number, "target_segment": string, "key_value_prop": string, "expected_conversion_rate": string } ], "launch_price_recommendation": number, "launch_price_rationale": string (2 paragraphs), "expansion_price_path": string, "packaging_recommendation_detail": string (3 paragraphs on packaging strategy — what to bundle, what to unbundle, tier structure rationale), "launch_vs_scale": { "launch_rationale": string, "scale_path": string, "transition_trigger": string }, "price_increase_strategy": { "narrative": string (2 paragraphs on the 12-month price increase roadmap), "timeline": [ { "month": string (e.g. "Month 3"), "action": string, "target_price": number } ] (3-4 milestones) } },
+  "competitive_positioning": { "narrative": string (3 paragraphs), "position": string, "competitive_moat_assessment": string (3 paragraphs — what makes the pricing defensible, what barriers exist, how durable is the moat), "moat_durability": "Strong"|"Moderate"|"Weak", "benchmark_table": [ { "competitor": string, "estimated_price": string, "pricing_model": string, "positioning": string, "your_advantage": string, "threat_level": string } ] (5 rows minimum), "white_space_opportunity": string },
+  "cost_of_inaction": { "headline_number": string, "calculation": string, "narrative": string (2 paragraphs) },
+  "investor_narrative": { "pricing_thesis": string (3 paragraphs), "defensibility_statement": string (2 paragraphs), "growth_lever_analysis": string, "comparable_company_pricing": [ { "company": string, "price": string, "model": string, "annual_revenue": string, "key_insight": string } ] (3 companies with pricing details), "comparable_companies": [ { "company": string, "pricing_model": string, "key_lesson": string } ], "red_flags_to_address": [string] (4-6 flags with specific mitigation), "investor_questions_to_prepare": [ { "question": string, "prepared_answer": string } ] (5-7 Q&A pairs) },
+  "glossary": [ { "term": string, "definition": string (plain English, 1-2 sentences) } ] (20-25 pricing terms: PMC, OPP, IPP, PME, LTV, CAC, Rule of 40, Van Westendorp, Price Elasticity, Contribution Margin, TAM, SAM, SOM, Breakeven Point, Gross Margin, MRR, ARR, Payback Period, Churn Rate, ARPU, etc.),
   "next_steps": [string] (7 actions with timeframes)
 }`;
         } else {
             schemaInstruction = `
 Return a JSON object with exactly these keys:
 {
-  "unit_economics": { "narrative": string (3 paragraphs), "gross_margin_analysis": string, "estimated_ltv": number, "estimated_ltv_cac_ratio": number, "payback_period_months": number, "breakeven_units": number, "health_score": string, "health_rationale": string, "investor_lens_commentary": string },
-  "financial_scenarios": { "narrative": string, "scenarios": [ { "name": "Conservative"|"Base Case"|"Optimistic", "price_point": number, "mrr_month_6": number, "mrr_month_12": number, "arr_year_1": number, "key_assumption": string } ] },
+  "unit_economics": { "narrative": string (3 paragraphs), "gross_margin_analysis": string, "estimated_ltv": number, "estimated_ltv_cac_ratio": number, "payback_period_months": number, "breakeven_units": number, "health_score": string, "health_rationale": string, "investor_lens_commentary": string, "rule_of_40": { "growth_rate": number (estimated annual growth rate %), "profit_margin": number (gross profit margin %), "combined_score": number (sum of growth + margin), "assessment": string (1-2 sentences: above 40 = strong, below 40 = concern) } },
+  "financial_scenarios": { "narrative": string (2 paragraphs), "scenarios": [ { "name": "Conservative"|"Base Case"|"Optimistic", "price_point": number, "monthly_customers": number, "mrr_month_6": number, "mrr_month_12": number, "arr_year_1": number, "gross_profit": number, "implied_cac_budget": number, "key_assumption": string } ] },
+  "margin_erosion_audit": { "narrative": string (2 paragraphs explaining margin risks), "leakage_sources": [ { "source": string, "annual_impact": string (dollar amount), "fix": string } ] (4-6 sources), "total_leakage": string (total annual impact) },
+  "monitoring_plan": [ { "metric": string, "target": string, "warning_threshold": string, "action": string } ] (3 metrics),
   "chart_data": {
     "price_range_bar": { "labels": ["Survival","PMC","OPP","Best Price","IPP","Premium","PME"], "values": [number x7], "description": string },
     "revenue_projection_12m": { "labels": ["M1","M2","M3","M4","M5","M6","M7","M8","M9","M10","M11","M12"], "conservative": [number x12], "base_case": [number x12], "optimistic": [number x12], "description": string },
     "ltv_cac_waterfall": { "labels": ["CAC","Gross Margin/Mo","Payback Period","LTV"], "values": [number x4], "description": string }
   },
-  "risk_matrix": [ { "risk": string, "category": string, "severity": string, "probability": string, "impact": string, "mitigation": string, "timeline": string } ] (7-10 risks),
-  "implementation_roadmap": { "narrative": string, "phases": [ { "phase": number, "title": string, "duration": string, "key_actions": [string], "success_metric": string, "pricing_milestone": string } ] (4 phases) },
+  "risk_matrix": [ { "risk": string, "category": string, "severity": string, "probability": string, "impact": string, "mitigation": string (2-3 sentences), "timeline": string } ] (7-10 risks),
+  "implementation_roadmap": { "narrative": string (2 paragraphs), "phases": [ { "phase": number, "title": string, "duration": string, "key_actions": [string] (5-6 actions), "success_metric": string, "pricing_milestone": string } ] (4 phases covering 18 months) },
   "audit_findings": ${journeyType === 'established_seller' || journeyType === 'price_audit'
                 ? '{ "current_price_assessment": string, "pricing_health_score": number (0-100), "revenue_leakage_estimate": string, "quick_wins": [string], "structural_changes": [string], "recommended_price_change": string }'
                 : 'null (not applicable for new product launch)'}
@@ -394,7 +425,7 @@ export const generatePricingReport = async (
     try {
         if (tier === 'Investor') {
             console.log(`[Claude] Generating Investor Grade Call 1: Narrative`);
-            const maxTokens = 8000;
+            const maxTokens = 12000;
             const systemPrompt = buildSystemPrompt(journeyType, tier);
             
             const userPrompt1 = buildUserPrompt(sessionData, pricingResult, appliedModifiers, journeyType, tier, intelligenceData, 'narrative');
@@ -413,7 +444,7 @@ export const generatePricingReport = async (
             const finalReport = { ...narrativeResult, ...dataResult };
             return finalReport;
         } else {
-            const maxTokens = tier === 'Professional' ? 14000 : 8000;
+            const maxTokens = tier === 'Professional' ? 16000 : 10000;
             console.log(`[Claude] Generating ${tier} report for journey: ${journeyType} (max_tokens: ${maxTokens})`);
             const systemPrompt = buildSystemPrompt(journeyType, tier);
             const userPrompt = buildUserPrompt(sessionData, pricingResult, appliedModifiers, journeyType, tier, intelligenceData);

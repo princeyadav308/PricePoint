@@ -517,6 +517,88 @@ function generateGaugeSVG(value: number, max: number = 100, label: string = '', 
     return svg;
 }
 
+// ── Positioning Map (Scatter Plot) ──────────────────────────
+function generatePositioningMapSVG(items: { name: string; price: number; value_score: number }[], cs: string): string {
+    if (!items?.length) return '';
+    const W = 520, H = 280;
+    const pad = { top: 30, right: 30, bottom: 50, left: 70 };
+    const cW = W - pad.left - pad.right;
+    const cH = H - pad.top - pad.bottom;
+    const prices = items.map(i => i.price);
+    const scores = items.map(i => i.value_score);
+    const minP = Math.min(...prices) * 0.8, maxP = Math.max(...prices) * 1.2;
+    const minS = 0, maxS = Math.max(...scores, 10) * 1.15;
+    const xPos = (p: number) => pad.left + ((p - minP) / (maxP - minP || 1)) * cW;
+    const yPos = (s: number) => pad.top + cH - ((s - minS) / (maxS - minS || 1)) * cH;
+
+    let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+    svg += `<rect x="${pad.left}" y="${pad.top}" width="${cW}" height="${cH}" fill="${VOYA.lightGray}" rx="2"/>`;
+    // Grid
+    for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (cH * i) / 4;
+        svg += `<line x1="${pad.left}" y1="${y}" x2="${W - pad.right}" y2="${y}" stroke="${VOYA.border}" stroke-width="0.5"/>`;
+        const x = pad.left + (cW * i) / 4;
+        svg += `<line x1="${x}" y1="${pad.top}" x2="${x}" y2="${pad.top + cH}" stroke="${VOYA.border}" stroke-width="0.5"/>`;
+    }
+    // Dots
+    items.forEach((item, i) => {
+        const x = xPos(item.price);
+        const y = yPos(item.value_score);
+        const isYou = item.name === 'Your Product';
+        const r = isYou ? 10 : 7;
+        const color = isYou ? VOYA.teal : VOYA.orange;
+        svg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" opacity="0.85" stroke="${VOYA.white}" stroke-width="2"/>`;
+        svg += `<text x="${x}" y="${y - r - 4}" font-size="10" fill="${VOYA.dark}" text-anchor="middle" font-weight="${isYou ? '700' : '400'}" font-family="Source Sans 3, sans-serif">${esc(item.name)}</text>`;
+    });
+    // Axes
+    svg += `<line x1="${pad.left}" y1="${pad.top + cH}" x2="${W - pad.right}" y2="${pad.top + cH}" stroke="${VOYA.dark}" stroke-width="1"/>`;
+    svg += `<line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + cH}" stroke="${VOYA.dark}" stroke-width="1"/>`;
+    svg += `<text x="${W / 2}" y="${H - 8}" font-size="11" fill="${VOYA.gray}" text-anchor="middle" font-family="Source Sans 3, sans-serif">Price (${cs})</text>`;
+    svg += `<text x="14" y="${pad.top + cH / 2}" font-size="11" fill="${VOYA.gray}" text-anchor="middle" transform="rotate(-90, 14, ${pad.top + cH / 2})" font-family="Source Sans 3, sans-serif">Value Score</text>`;
+    svg += '</svg>';
+    return svg;
+}
+
+// ── Rule of 40 Gauge ────────────────────────────────────────
+function generateRuleOf40GaugeSVG(score: number): string {
+    const W = 200, H = 130;
+    const cx = W / 2, cy = 100, r = 70;
+    const clamped = Math.min(Math.max(score, 0), 80);
+    const pct = clamped / 80;
+    const endAngle = Math.PI + pct * Math.PI;
+    const color = score >= 40 ? VOYA.green : score >= 25 ? VOYA.orange : VOYA.red;
+
+    let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+    svg += `<path d="M${cx - r},${cy} A${r},${r} 0 0,1 ${cx + r},${cy}" fill="none" stroke="${VOYA.border}" stroke-width="14" stroke-linecap="round"/>`;
+    const x2 = cx + r * Math.cos(endAngle);
+    const y2 = cy + r * Math.sin(endAngle);
+    const largeArc = pct > 0.5 ? 1 : 0;
+    svg += `<path d="M${cx - r},${cy} A${r},${r} 0 ${largeArc},1 ${x2},${y2}" fill="none" stroke="${color}" stroke-width="14" stroke-linecap="round"/>`;
+    // "40" threshold marker
+    const threshAngle = Math.PI + (40 / 80) * Math.PI;
+    const mx = cx + (r + 12) * Math.cos(threshAngle);
+    const my = cy + (r + 12) * Math.sin(threshAngle);
+    svg += `<circle cx="${cx + r * Math.cos(threshAngle)}" cy="${cy + r * Math.sin(threshAngle)}" r="2" fill="${VOYA.dark}"/>`;
+    svg += `<text x="${mx}" y="${my + 4}" font-size="9" fill="${VOYA.gray}" text-anchor="middle" font-family="Source Sans 3, sans-serif">40</text>`;
+    svg += `<text x="${cx}" y="${cy - 14}" font-size="28" font-weight="700" fill="${VOYA.dark}" text-anchor="middle" font-family="Source Sans 3, sans-serif">${score}</text>`;
+    svg += `<text x="${cx}" y="${cy + 4}" font-size="10" fill="${VOYA.gray}" text-anchor="middle" font-family="Source Sans 3, sans-serif">Rule of 40</text>`;
+    svg += `<text x="${cx - r - 4}" y="${cy + 14}" font-size="9" fill="${VOYA.gray}" text-anchor="middle">0</text>`;
+    svg += `<text x="${cx + r + 4}" y="${cy + 14}" font-size="9" fill="${VOYA.gray}" text-anchor="middle">80</text>`;
+    svg += '</svg>';
+    return svg;
+}
+
+// ── Margin Erosion Horizontal Bar ───────────────────────────
+function generateMarginErosionBarSVG(sources: { source: string; annual_impact: string }[]): string {
+    if (!sources?.length) return '';
+    const items = sources.map(s => ({
+        label: s.source,
+        value: parseFloat(String(s.annual_impact).replace(/[^0-9.]/g, '')) || 0,
+        color: VOYA.red,
+    }));
+    return generateHorizontalBarSVG(items);
+}
+
 // ══════════════════════════════════════════════════════════════
 // MAIN TEMPLATE GENERATOR
 // ══════════════════════════════════════════════════════════════
@@ -919,12 +1001,124 @@ export function generateHTMLTemplate(payload: any): string {
         .badge-red { background: ${V.red}15; color: ${V.red}; }
         ul { margin: 0; padding-left: 18px; }
         li { margin-bottom: 5px; font-size: 14px; }
+
+        /* ── Table of Contents ── */
+        .toc-page .toc-grid { display: flex; gap: 32px; }
+        .toc-page .toc-col { flex: 1; }
+        .toc-group { margin-bottom: 18px; }
+        .toc-group-label {
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--voya-orange); margin-bottom: 8px;
+            border-bottom: 1px solid var(--voya-border); padding-bottom: 4px;
+        }
+        .toc-item {
+            display: flex; justify-content: space-between; align-items: baseline;
+            padding: 4px 0; border-bottom: 1px dotted var(--voya-border);
+        }
+        .toc-item .toc-num { font-size: 11px; font-weight: 700; color: var(--voya-teal); min-width: 24px; }
+        .toc-item .toc-label { font-size: 13px; color: var(--voya-dark); flex: 1; }
+
+        /* ── Strategic Verdict Card ── */
+        .verdict-card {
+            padding: 24px 28px; margin: 20px 0;
+            background: linear-gradient(135deg, ${VOYA.teal}08 0%, ${VOYA.orange}06 100%);
+            border: 2px solid ${VOYA.teal}; border-radius: 10px;
+            page-break-inside: avoid; break-inside: avoid;
+        }
+        .verdict-card .vc-headline {
+            font-size: 20px; font-weight: 700; color: var(--voya-teal);
+            margin-bottom: 12px; line-height: 1.3;
+        }
+        .verdict-card .vc-body { font-size: 14px; color: var(--voya-dark); line-height: 1.65; }
+        .verdict-card .vc-badge {
+            display: inline-block; margin-top: 12px; padding: 4px 14px;
+            border-radius: 16px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        /* ── Cost of Inaction Callout ── */
+        .inaction-callout {
+            padding: 24px 28px; margin: 20px 0;
+            background: ${VOYA.red}08; border: 2px solid ${VOYA.red};
+            border-radius: 10px; text-align: center;
+            page-break-inside: avoid; break-inside: avoid;
+        }
+        .inaction-callout .ic-label {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: ${VOYA.red}; margin-bottom: 8px;
+        }
+        .inaction-callout .ic-number {
+            font-size: 32px; font-weight: 700; color: ${VOYA.red}; margin-bottom: 8px;
+        }
+        .inaction-callout .ic-calc { font-size: 14px; color: var(--voya-dark); line-height: 1.6; }
+
+        /* ── Thesis Page ── */
+        .thesis-content {
+            column-count: 2; column-gap: 28px;
+            column-rule: 1px solid var(--voya-border);
+            font-size: 14px; line-height: 1.7; color: var(--voya-dark);
+            orphans: 3; widows: 3;
+        }
+
+        /* ── Glossary Grid ── */
+        .glossary-grid {
+            column-count: 2; column-gap: 24px;
+        }
+        .glossary-item {
+            padding: 8px 0; border-bottom: 1px solid var(--voya-border);
+            break-inside: avoid; page-break-inside: avoid;
+        }
+        .glossary-term { font-size: 13px; font-weight: 700; color: var(--voya-teal); }
+        .glossary-def { font-size: 12px; color: var(--voya-dark); line-height: 1.5; margin-top: 2px; }
+
+        /* ── Q&A Cards ── */
+        .qa-card {
+            padding: 14px 18px; margin-bottom: 12px;
+            border: 1px solid var(--voya-border); border-radius: 6px;
+            background: var(--voya-light-gray);
+            page-break-inside: avoid; break-inside: avoid;
+        }
+        .qa-card .qa-q {
+            font-size: 14px; font-weight: 700; color: var(--voya-dark); margin-bottom: 6px;
+        }
+        .qa-card .qa-a { font-size: 13px; color: var(--voya-dark); line-height: 1.6; }
+
+        /* ── Metric Trigger Table ── */
+        .metric-trigger-table td.target { color: ${VOYA.green}; font-weight: 600; }
+        .metric-trigger-table td.warning { color: ${VOYA.red}; font-weight: 600; }
+
+        /* ── Timeline Steps ── */
+        .timeline-item {
+            display: flex; gap: 14px; margin-bottom: 14px;
+            page-break-inside: avoid; break-inside: avoid;
+        }
+        .timeline-dot {
+            min-width: 36px; height: 36px; border-radius: 50%;
+            background: var(--voya-teal); color: #FFF;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700;
+        }
+        .timeline-body { flex: 1; }
+        .timeline-body h4 { font-size: 13px; margin: 0 0 2px 0; color: var(--voya-dark); }
+        .timeline-body p { font-size: 12px; color: var(--voya-gray); margin: 0; }
+
+        /* ── Input Audit Table ── */
+        .audit-table { width: 100%; border-collapse: collapse; }
+        .audit-table td {
+            padding: 8px 14px; border-bottom: 1px solid var(--voya-border);
+            font-size: 12px; vertical-align: top;
+        }
+        .audit-table td:first-child {
+            font-weight: 600; color: var(--voya-dark); width: 35%;
+            background: var(--voya-light-gray);
+        }
+        .audit-table td:last-child { color: var(--voya-dark); }
     </style>
 </head>
 <body>
 
     <!-- ═══════════════════════════════════════════════
-         COVER PAGE
+         01 · COVER PAGE (All Tiers)
          ═══════════════════════════════════════════════ -->
     <div class="voya-page cover-page">
         <div class="cover-hero">
@@ -953,7 +1147,7 @@ export function generateHTMLTemplate(payload: any): string {
                 </div>
             </div>
 
-            ${isInvestor && meta.report_thesis ? `
+            ${!isBasic && meta.report_thesis ? `
             <div class="callout teal" style="margin-bottom: 24px;">
                 <div class="callout-label">Investment Thesis</div>
                 <p style="font-size: 14px; color: var(--voya-dark); line-height: 1.6; font-style: italic; margin: 0;">${esc(meta.report_thesis)}</p>
@@ -962,7 +1156,7 @@ export function generateHTMLTemplate(payload: any): string {
             <div class="cover-footer">
                 <div class="doc-info">
                     <strong>${esc(productName)}</strong>${companyName ? ` &mdash; ${esc(companyName)}` : ''}<br>
-                    ${dateStr} &bull; ${esc(meta.journey_type || journeyType || 'Pricing Analysis')} &bull; ${esc(cs)}<br>
+                    Document ID: PP-${Date.now().toString(36).toUpperCase()} &bull; ${dateStr}<br>
                     <span style="font-size:10px;">Strictly Confidential</span>
                 </div>
                 <div class="doc-logo">PricePoint</div>
@@ -971,32 +1165,193 @@ export function generateHTMLTemplate(payload: any): string {
     </div>
 
     <!-- ═══════════════════════════════════════════════
-         BY THE NUMBERS — Strategic Overview
+         02 · TABLE OF CONTENTS (All Tiers)
          ═══════════════════════════════════════════════ -->
-    ${pageStart('Strategic Overview')}
-        <h2 class="section-title">Strategic Overview</h2>
-        <p class="section-subtitle">By the Numbers &mdash; Key pricing intelligence metrics at a glance</p>
+    ${pageStart('Table of Contents')}
+        <h2 class="section-title">Table of Contents</h2>
+        <div class="toc-page">
+        ${isBasic ? `
+            <div class="toc-group">
+                <div class="toc-group-label">Opening</div>
+                <div class="toc-item"><span class="toc-num">01</span><span class="toc-label">Cover Page</span></div>
+                <div class="toc-item"><span class="toc-num">02</span><span class="toc-label">Table of Contents</span></div>
+                <div class="toc-item"><span class="toc-num">03</span><span class="toc-label">Executive Summary</span></div>
+            </div>
+            <div class="toc-group">
+                <div class="toc-group-label">Core Analysis</div>
+                <div class="toc-item"><span class="toc-num">04</span><span class="toc-label">Price Recommendation + Rationale</span></div>
+                <div class="toc-item"><span class="toc-num">05</span><span class="toc-label">Van Westendorp Visual + Interpretation</span></div>
+                <div class="toc-item"><span class="toc-num">06</span><span class="toc-label">Cost Breakdown + Gross Margin</span></div>
+                <div class="toc-item"><span class="toc-num">07</span><span class="toc-label">Breakeven Table</span></div>
+                <div class="toc-item"><span class="toc-num">08</span><span class="toc-label">Top 3 Risks + Mitigations</span></div>
+                <div class="toc-item"><span class="toc-num">09</span><span class="toc-label">5 Next Steps</span></div>
+            </div>
+            <div class="toc-group">
+                <div class="toc-group-label">Closing</div>
+                <div class="toc-item"><span class="toc-num">10</span><span class="toc-label">Full Input Audit</span></div>
+                <div class="toc-item"><span class="toc-num">11</span><span class="toc-label">Methodology Appendix</span></div>
+                <div class="toc-item"><span class="toc-num">12</span><span class="toc-label">Legal Disclaimer</span></div>
+                <div class="toc-item"><span class="toc-num">13</span><span class="toc-label">Verification Seal</span></div>
+            </div>
+        ` : isFounder ? `
+            <div class="toc-grid">
+                <div class="toc-col">
+                    <div class="toc-group">
+                        <div class="toc-group-label">Opening</div>
+                        <div class="toc-item"><span class="toc-num">01</span><span class="toc-label">Cover Page</span></div>
+                        <div class="toc-item"><span class="toc-num">02</span><span class="toc-label">Table of Contents</span></div>
+                        <div class="toc-item"><span class="toc-num">03</span><span class="toc-label">Executive Summary</span></div>
+                        <div class="toc-item"><span class="toc-num">04</span><span class="toc-label">Strategic Verdict Card</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Market Intelligence</div>
+                        <div class="toc-item"><span class="toc-num">05</span><span class="toc-label">Van Westendorp Full Analysis</span></div>
+                        <div class="toc-item"><span class="toc-num">06</span><span class="toc-label">Market Sizing (TAM/SAM)</span></div>
+                        <div class="toc-item"><span class="toc-num">07</span><span class="toc-label">Competitive Benchmark Table</span></div>
+                        <div class="toc-item"><span class="toc-num">08</span><span class="toc-label">Positioning Map</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Unit Economics</div>
+                        <div class="toc-item"><span class="toc-num">09</span><span class="toc-label">Cost Breakdown + Gross Margin</span></div>
+                        <div class="toc-item"><span class="toc-num">10</span><span class="toc-label">Breakeven Table</span></div>
+                        <div class="toc-item"><span class="toc-num">11</span><span class="toc-label">LTV &middot; CAC &middot; Payback</span></div>
+                        <div class="toc-item"><span class="toc-num">12</span><span class="toc-label">Revenue Scenario Table</span></div>
+                        <div class="toc-item"><span class="toc-num">13</span><span class="toc-label">Cost of Inaction</span></div>
+                    </div>
+                </div>
+                <div class="toc-col">
+                    <div class="toc-group">
+                        <div class="toc-group-label">Strategy</div>
+                        <div class="toc-item"><span class="toc-num">14</span><span class="toc-label">Price Recommendation + Rationale</span></div>
+                        <div class="toc-item"><span class="toc-num">15</span><span class="toc-label">Pricing Tier Architecture</span></div>
+                        <div class="toc-item"><span class="toc-num">16</span><span class="toc-label">Launch vs. Scale Pricing</span></div>
+                        <div class="toc-item"><span class="toc-num">17</span><span class="toc-label">90-Day Monitoring Plan</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Risk &amp; Roadmap</div>
+                        <div class="toc-item"><span class="toc-num">18</span><span class="toc-label">Risk Matrix</span></div>
+                        <div class="toc-item"><span class="toc-num">19</span><span class="toc-label">3-Phase Implementation Roadmap</span></div>
+                        <div class="toc-item"><span class="toc-num">20</span><span class="toc-label">Next Steps</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Closing</div>
+                        <div class="toc-item"><span class="toc-num">21</span><span class="toc-label">Full Input Audit</span></div>
+                        <div class="toc-item"><span class="toc-num">22</span><span class="toc-label">Methodology Appendix</span></div>
+                        <div class="toc-item"><span class="toc-num">23</span><span class="toc-label">Legal Disclaimer + Verification Seal</span></div>
+                    </div>
+                </div>
+            </div>
+        ` : `
+            <div class="toc-grid">
+                <div class="toc-col">
+                    <div class="toc-group">
+                        <div class="toc-group-label">Opening</div>
+                        <div class="toc-item"><span class="toc-num">01</span><span class="toc-label">Cover Page</span></div>
+                        <div class="toc-item"><span class="toc-num">02</span><span class="toc-label">Table of Contents</span></div>
+                        <div class="toc-item"><span class="toc-num">03</span><span class="toc-label">Investment Thesis</span></div>
+                        <div class="toc-item"><span class="toc-num">04</span><span class="toc-label">Executive Summary</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Market Intelligence</div>
+                        <div class="toc-item"><span class="toc-num">05</span><span class="toc-label">Van Westendorp Full Analysis</span></div>
+                        <div class="toc-item"><span class="toc-num">06</span><span class="toc-label">Market Sizing (TAM/SAM/SOM)</span></div>
+                        <div class="toc-item"><span class="toc-num">07</span><span class="toc-label">Market Timing Assessment</span></div>
+                        <div class="toc-item"><span class="toc-num">08</span><span class="toc-label">Competitive Benchmark</span></div>
+                        <div class="toc-item"><span class="toc-num">09</span><span class="toc-label">Feature-to-Price Mapping</span></div>
+                        <div class="toc-item"><span class="toc-num">10</span><span class="toc-label">Competitive Moat Assessment</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Financial Analysis</div>
+                        <div class="toc-item"><span class="toc-num">11</span><span class="toc-label">Cost Breakdown + Gross Margin</span></div>
+                        <div class="toc-item"><span class="toc-num">12</span><span class="toc-label">Breakeven Table</span></div>
+                        <div class="toc-item"><span class="toc-num">13</span><span class="toc-label">LTV &middot; CAC &middot; Payback &middot; Rule of 40</span></div>
+                        <div class="toc-item"><span class="toc-num">14</span><span class="toc-label">Revenue Scenario Table</span></div>
+                        <div class="toc-item"><span class="toc-num">15</span><span class="toc-label">12-Month Revenue Projection</span></div>
+                        <div class="toc-item"><span class="toc-num">16</span><span class="toc-label">Margin Erosion + Leakage Audit</span></div>
+                        <div class="toc-item"><span class="toc-num">17</span><span class="toc-label">Cost of Inaction</span></div>
+                    </div>
+                </div>
+                <div class="toc-col">
+                    <div class="toc-group">
+                        <div class="toc-group-label">Pricing Strategy</div>
+                        <div class="toc-item"><span class="toc-num">18</span><span class="toc-label">Price Recommendation + Rationale</span></div>
+                        <div class="toc-item"><span class="toc-num">19</span><span class="toc-label">Pricing Tier Architecture</span></div>
+                        <div class="toc-item"><span class="toc-num">20</span><span class="toc-label">Packaging Recommendation</span></div>
+                        <div class="toc-item"><span class="toc-num">21</span><span class="toc-label">Launch vs. Scale Pricing</span></div>
+                        <div class="toc-item"><span class="toc-num">22</span><span class="toc-label">Price Increase Strategy</span></div>
+                        <div class="toc-item"><span class="toc-num">23</span><span class="toc-label">90-Day Monitoring Plan</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Investor Materials</div>
+                        <div class="toc-item"><span class="toc-num">24</span><span class="toc-label">Pricing Defensibility Statement</span></div>
+                        <div class="toc-item"><span class="toc-num">25</span><span class="toc-label">Comparable Company Pricing</span></div>
+                        <div class="toc-item"><span class="toc-num">26</span><span class="toc-label">Red Flags to Address</span></div>
+                        <div class="toc-item"><span class="toc-num">27</span><span class="toc-label">Investor Questions to Prepare For</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Risk &amp; Roadmap</div>
+                        <div class="toc-item"><span class="toc-num">28</span><span class="toc-label">Risk Matrix</span></div>
+                        <div class="toc-item"><span class="toc-num">29</span><span class="toc-label">4-Phase Roadmap (18 Months)</span></div>
+                        <div class="toc-item"><span class="toc-num">30</span><span class="toc-label">Next Steps</span></div>
+                    </div>
+                    <div class="toc-group">
+                        <div class="toc-group-label">Closing</div>
+                        <div class="toc-item"><span class="toc-num">31</span><span class="toc-label">Full Input Audit</span></div>
+                        <div class="toc-item"><span class="toc-num">32</span><span class="toc-label">Methodology Appendix</span></div>
+                        <div class="toc-item"><span class="toc-num">33</span><span class="toc-label">Glossary of Pricing Terms</span></div>
+                        <div class="toc-item"><span class="toc-num">34</span><span class="toc-label">Legal Disclaimer + Verification Seal</span></div>
+                    </div>
+                </div>
+            </div>
+        `}
+        </div>
+    ${pageEnd}
 
-        ${isAudit && d.audit_findings?.revenue_leakage_estimate ? `
-        <div class="callout red">
-            <div class="callout-label" style="color: ${V.red};">Cost of Inaction</div>
-            <p class="paragraph" style="font-weight: 600; margin: 0;">Estimated Revenue Leakage: <strong>${esc(d.audit_findings.revenue_leakage_estimate)}</strong></p>
+    <!-- ═══════════════════════════════════════════════
+         03 · INVESTMENT THESIS (Investor Only — 2 pages)
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && txt(d.investment_thesis) ? `
+    ${pageStart('Investment Thesis')}
+        <h2 class="section-title">Investment Thesis</h2>
+        <p class="section-subtitle">Pricing strategy rationale for investor consideration</p>
+        <div class="thesis-content">
+            ${txt(d.investment_thesis).split('\n\n').map((p: string) => `<p class="paragraph">${esc(p)}</p>`).join('')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         03/04 · EXECUTIVE SUMMARY (All Tiers)
+         ═══════════════════════════════════════════════ -->
+    ${pageStart('Executive Summary')}
+        <h2 class="section-title">Executive Summary</h2>
+        <p class="section-subtitle">Situation analysis, key finding, and recommended action</p>
+
+        <h3 class="subsection-title">${esc(txt(exec.headline, 'Executive Summary'))}</h3>
+        <p class="paragraph">${esc(txt(exec.summary))}</p>
+
+        ${exec.pricing_verdict?.recommended_price ? `
+        <div class="callout teal">
+            <div class="callout-label">Pricing Verdict</div>
+            <p style="margin: 6px 0 0 0; font-size: 14px;">Recommended Price: <strong class="text-teal" style="font-size:20px;">${cs}${num(exec.pricing_verdict.recommended_price).toFixed(2)}</strong></p>
+            <p style="margin: 6px 0 0 0; font-size: 14px;">Model: <span class="badge badge-teal">${esc(txt(exec.pricing_verdict.recommended_model, 'N/A'))}</span> &nbsp; Confidence: <strong>${esc(txt(exec.pricing_verdict.confidence_level, 'N/A'))}</strong></p>
+            <p class="footnote" style="margin-top: 4px;">${esc(txt(exec.pricing_verdict.confidence_rationale, ''))}</p>
         </div>` : ''}
 
-        <!-- Stat Cards with SVG Icons -->
+        <!-- Stat Cards -->
         <div class="stat-grid">
             <div class="stat-card">
                 <div class="stat-card-icon">${svgIcon('dollar', V.orange)}</div>
                 <div class="stat-card-body">
                     <div class="stat-value">${cs}${fmt(budget)}</div>
-                    <div class="stat-label">Market Entry Floor</div>
+                    <div class="stat-label">Entry Floor</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-card-icon">${svgIcon('target', V.teal)}</div>
                 <div class="stat-card-body">
                     <div class="stat-value">${cs}${fmt(recommended)}</div>
-                    <div class="stat-label">Optimal Price Point</div>
+                    <div class="stat-label">Optimal Price</div>
                 </div>
             </div>
             <div class="stat-card">
@@ -1006,30 +1361,32 @@ export function generateHTMLTemplate(payload: any): string {
                     <div class="stat-label">Premium Anchor</div>
                 </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-icon">${svgIcon('calculator', V.gray)}</div>
-                <div class="stat-card-body">
-                    <div class="stat-value">${cs}${fmt(costBase)}</div>
-                    <div class="stat-label">True Cost Base</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon">${svgIcon('multiplier', V.teal)}</div>
-                <div class="stat-card-body">
-                    <div class="stat-value">${valueMult.toFixed(2)}x</div>
-                    <div class="stat-label">Value Multiplier</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon">${svgIcon('gear', V.gray)}</div>
-                <div class="stat-card-body">
-                    <div class="stat-value">${(pr.appliedModifiers || []).length}</div>
-                    <div class="stat-label">Active Modifiers</div>
-                </div>
-            </div>
         </div>
 
-        <!-- Price Range Bar Chart -->
+        ${isInvestor && arr(exec.key_findings).length > 0 ? `
+        <h3 class="subsection-title">Key Findings</h3>
+        ${arr(exec.key_findings).map((f: string) => `
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">
+            <span style="color:${V.teal};font-size:16px;font-weight:700;">&bull;</span>
+            <p class="paragraph" style="margin:0;">${esc(f)}</p>
+        </div>`).join('')}
+        ` : ''}
+    ${pageEnd}
+
+    <!-- ═══════════════════════════════════════════════
+         04 · STRATEGIC VERDICT CARD (Founder + Investor)
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && d.strategic_verdict ? `
+    ${pageStart('Strategic Verdict')}
+        <div class="verdict-card">
+            <div class="vc-headline">${esc(txt(d.strategic_verdict.headline, txt(meta.one_line_verdict)))}</div>
+            <div class="vc-body">${esc(txt(d.strategic_verdict.body))}</div>
+            <span class="vc-badge badge-${(d.strategic_verdict.confidence_badge || exec.pricing_verdict?.confidence_level || '').toLowerCase() === 'high' ? 'green' : 'orange'}">
+                Confidence: ${esc(txt(d.strategic_verdict.confidence_badge || exec.pricing_verdict?.confidence_level, 'Medium'))}
+            </span>
+        </div>
+
+        <!-- Price Comparison Chart -->
         <div class="exhibit-box">
             <div class="exhibit-header">${nextExhibit('Price Point Comparison')}</div>
             <div class="chart-container">
@@ -1039,132 +1396,199 @@ export function generateHTMLTemplate(payload: any): string {
                     2
                 )}
             </div>
-            <p class="source-note">PricePoint Pricing Engine — algorithmic output based on user-provided data</p>
-            ${trackSource('PricePoint Pricing Engine — algorithmic output based on user-provided data')}
+            ${trackSource('PricePoint Pricing Engine — algorithmic output')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         BASIC ONLY: Price Recommendation + Rationale
+         ═══════════════════════════════════════════════ -->
+    ${isBasic && d.pricing_analysis ? `
+    ${pageStart('Price Recommendation')}
+        <h2 class="section-title">Price Recommendation &amp; Rationale</h2>
+        <p class="section-subtitle">Detailed commentary on your three pricing tiers</p>
+
+        <div class="callout" style="margin-bottom: 20px;">
+            <div class="callout-label">Recommended Anchor: <span class="badge badge-teal">${esc(txt(d.pricing_analysis.recommended_anchor, 'best')).toUpperCase()}</span></div>
+            <p style="margin: 6px 0 0 0; font-size: 14px;">${esc(txt(d.pricing_analysis.anchor_rationale))}</p>
         </div>
 
-        <!-- Executive Summary -->
-        <div class="${isBasic ? '' : 'voya-two-col'}">
-            ${!isBasic ? `
-            <div class="col-left-38">
-                <div class="callout teal">
-                    <div class="callout-label">Pricing Thesis</div>
-                    <p style="font-size: 14px; margin: 8px 0 0 0;">
-                        Value Multiplier of <strong>${valueMult.toFixed(2)}x</strong> validates <strong>${valueMult >= 1.5 ? 'premium' : 'competitive'}</strong> positioning.
-                    </p>
-                    ${margin > 0 ? `<p style="font-size: 13px; margin: 8px 0 0 0; color: ${V.gray};">Gross Margin: <strong style="color:${V.teal};">${margin.toFixed(1)}%</strong></p>` : ''}
-                </div>
-                ${pr.analysis?.vanWestendorp ? `
-                <div style="margin-top: 16px;">
-                    <div class="exhibit-box">
-                        <div class="exhibit-header">${nextExhibit('Van Westendorp PSM')}</div>
-                        <div class="chart-container">${generateVanWestendorpSVG(pr.analysis.vanWestendorp, cs)}</div>
-                        <table class="voya-table" style="margin-top: 14px;">
-                            <thead><tr><th>Point</th><th>Value</th><th>What It Means</th></tr></thead>
-                            <tbody>
-                                <tr><td>OPP (Floor)</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.opp || pr.analysis.vanWestendorp.floor))}</td><td style="font-weight:400;">Your recommended launch price</td></tr>
-                                <tr><td>IPP</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.ipp))}</td><td style="font-weight:400;">Customers are indifferent — neither impressed nor put off</td></tr>
-                                <tr><td>PMC</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.pmc))}</td><td style="font-weight:400;">Below this, customers think the product is too cheap to be credible</td></tr>
-                                <tr><td>PME (Ceiling)</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.pme || pr.analysis.vanWestendorp.ceiling))}</td><td style="font-weight:400;">Above this, most customers walk away</td></tr>
-                            </tbody>
-                        </table>
-                        <p class="source-note">Van Westendorp Price Sensitivity Meter</p>
-                        ${trackSource('Van Westendorp Price Sensitivity Meter')}
+        <h3 class="subsection-title">Survival Price Commentary</h3>
+        <p class="paragraph">${esc(txt(d.pricing_analysis.survival_commentary))}</p>
+        <h3 class="subsection-title">Best Price Commentary</h3>
+        <p class="paragraph">${esc(txt(d.pricing_analysis.best_price_commentary))}</p>
+        <h3 class="subsection-title">Premium Price Commentary</h3>
+        <p class="paragraph">${esc(txt(d.pricing_analysis.premium_price_commentary))}</p>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         05 · VAN WESTENDORP VISUAL + INTERPRETATION (All Tiers)
+         ═══════════════════════════════════════════════ -->
+    ${pr.analysis?.vanWestendorp ? `
+    ${pageStart('Van Westendorp Analysis')}
+        <h2 class="section-title">Van Westendorp Price Sensitivity</h2>
+        <p class="section-subtitle">Price sensitivity meter — identifying your optimal pricing zone</p>
+
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Van Westendorp PSM')}</div>
+            <div class="chart-container">${generateVanWestendorpSVG(pr.analysis.vanWestendorp, cs)}</div>
+            <table class="voya-table" style="margin-top: 14px;">
+                <thead><tr><th>Point</th><th>Value</th><th>What It Means</th></tr></thead>
+                <tbody>
+                    <tr><td>OPP (Floor)</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.opp || pr.analysis.vanWestendorp.floor))}</td><td style="font-weight:400;">Your recommended launch price</td></tr>
+                    <tr><td>IPP</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.ipp))}</td><td style="font-weight:400;">Customers are indifferent — neither impressed nor put off</td></tr>
+                    <tr><td>PMC</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.pmc))}</td><td style="font-weight:400;">Below this, customers think the product is too cheap to be credible</td></tr>
+                    <tr><td>PME (Ceiling)</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.pme || pr.analysis.vanWestendorp.ceiling))}</td><td style="font-weight:400;">Above this, most customers walk away</td></tr>
+                </tbody>
+            </table>
+            ${trackSource('Van Westendorp Price Sensitivity Meter')}
+        </div>
+
+        ${isBasic && txt(d.van_westendorp_interpretation) ? `
+        <h3 class="subsection-title">Interpretation</h3>
+        <p class="paragraph">${esc(d.van_westendorp_interpretation)}</p>` : ''}
+
+        ${!isBasic && txt(d.market_analysis?.willingness_to_pay_analysis) ? `
+        <h3 class="subsection-title">Willingness to Pay Analysis</h3>
+        <p class="paragraph">${esc(d.market_analysis.willingness_to_pay_analysis)}</p>` : ''}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         06 · COST BREAKDOWN + GROSS MARGIN (All Tiers)
+         ═══════════════════════════════════════════════ -->
+    ${pageStart('Cost Breakdown')}
+        <h2 class="section-title">Cost Breakdown &amp; Gross Margin</h2>
+        <p class="section-subtitle">Unit cost structure and margin analysis</p>
+
+        <div class="voya-two-col">
+            <div>
+                <div class="exhibit-box">
+                    <div class="exhibit-header">${nextExhibit('Unit Cost Structure')}</div>
+                    <div class="kpi-row">
+                        <div class="kpi-item">
+                            <div class="kpi-value">${cs}${fmt(totalUnitCost)}</div>
+                            <div class="kpi-label">Total Unit Cost</div>
+                        </div>
+                        <div class="kpi-item">
+                            <div class="kpi-value">${cs}${fmt(costBase)}</div>
+                            <div class="kpi-label">Cost-Plus Base</div>
+                        </div>
                     </div>
-                </div>` : ''}
-            </div>` : ''}
-            <div class="${isBasic ? '' : 'col-right-58'}">
-                <h3 class="subsection-title">${esc(txt(exec.headline, 'Executive Summary'))}</h3>
-                <p class="paragraph">${esc(txt(exec.summary))}</p>
-                ${exec.pricing_verdict?.recommended_price ? `
-                <div class="callout">
-                    <div class="callout-label">Pricing Verdict</div>
-                    <p style="margin: 6px 0 0 0; font-size: 14px;">Recommended: <strong class="text-teal">${cs}${num(exec.pricing_verdict.recommended_price).toFixed(2)}</strong> <span class="badge badge-teal">${esc(txt(exec.pricing_verdict.recommended_model, 'N/A'))}</span></p>
-                    <p class="footnote" style="margin-top: 4px;">Confidence: <strong>${esc(txt(exec.pricing_verdict.confidence_level, 'N/A'))}</strong> &mdash; ${esc(txt(exec.pricing_verdict.confidence_rationale, ''))}</p>
+                    <div class="kpi-row">
+                        <div class="kpi-item">
+                            <div class="kpi-value">${valueMult.toFixed(2)}x</div>
+                            <div class="kpi-label">Value Multiplier</div>
+                        </div>
+                        <div class="kpi-item">
+                            <div class="kpi-value">${margin.toFixed(1)}%</div>
+                            <div class="kpi-label">Gross Margin</div>
+                        </div>
+                    </div>
+                    ${trackSource('PricePoint Unit Economics')}
+                </div>
+            </div>
+            <div>
+                ${totalUnitCost > 0 ? `
+                <div class="exhibit-box">
+                    <div class="exhibit-header">${nextExhibit('Cost vs. Margin')}</div>
+                    ${generateDonutChartSVG([
+                        { label: 'Unit Cost', value: totalUnitCost, color: V.gray },
+                        { label: 'Margin', value: Math.max(recommended - totalUnitCost, 0), color: V.teal },
+                    ], 'Cost vs. Margin')}
                 </div>` : ''}
             </div>
         </div>
 
-        ${isBasic && pr.analysis?.vanWestendorp ? `
-        <div style="margin-top: 20px;">
-            <div class="exhibit-box">
-                <div class="exhibit-header">${nextExhibit('Van Westendorp Price Sensitivity')}</div>
-                <div class="chart-container">${generateVanWestendorpSVG(pr.analysis.vanWestendorp, cs)}</div>
-                <table class="voya-table" style="margin-top: 14px;">
-                    <thead><tr><th>Point</th><th>Value</th><th>What It Means</th></tr></thead>
-                    <tbody>
-                        <tr><td>OPP (Floor)</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.opp || pr.analysis.vanWestendorp.floor))}</td><td style="font-weight:400;">Your recommended launch price</td></tr>
-                        <tr><td>IPP</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.ipp))}</td><td style="font-weight:400;">Customers are indifferent — neither impressed nor put off</td></tr>
-                        <tr><td>PMC</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.pmc))}</td><td style="font-weight:400;">Below this, customers think the product is too cheap to be credible</td></tr>
-                        <tr><td>PME (Ceiling)</td><td class="text-teal">${cs}${fmt(num(pr.analysis.vanWestendorp.pme || pr.analysis.vanWestendorp.ceiling))}</td><td style="font-weight:400;">Above this, most customers walk away</td></tr>
-                    </tbody>
-                </table>
-                <p class="source-note">Van Westendorp Price Sensitivity Meter</p>
-                ${trackSource('Van Westendorp Price Sensitivity Meter')}
-            </div>
-        </div>` : ''}
+        ${isBasic && txt(d.cost_breakdown_narrative) ? `
+        <h3 class="subsection-title">Cost Structure Analysis</h3>
+        <p class="paragraph">${esc(d.cost_breakdown_narrative)}</p>` : ''}
 
-        ${isInvestor && arr(exec.key_findings).length > 0 ? `
-        <div style="margin-top: 14px;">
-            <h3 class="subsection-title">Key Findings</h3>
-            ${arr(exec.key_findings).map((f: string) => `<p class="paragraph">&bull; ${esc(f)}</p>`).join('')}
-        </div>` : ''}
+        ${isBasic && txt(d.gross_margin_commentary) ? `
+        <h3 class="subsection-title">Gross Margin Commentary</h3>
+        <p class="paragraph">${esc(d.gross_margin_commentary)}</p>` : ''}
+
+        ${!isBasic && txt(d.unit_economics?.narrative) ? `
+        <h3 class="subsection-title">Unit Economics Analysis</h3>
+        <p class="paragraph">${esc(d.unit_economics.narrative)}</p>
+        ${txt(d.unit_economics.gross_margin_analysis) ? `<p class="paragraph">${esc(d.unit_economics.gross_margin_analysis)}</p>` : ''}` : ''}
     ${pageEnd}
 
     <!-- ═══════════════════════════════════════════════
-         BASIC ONLY: Pricing Analysis + Risks + Next Steps
+         07 · BREAKEVEN TABLE (All Tiers)
+         ═══════════════════════════════════════════════ -->
+    ${totalUnitCost > 0 ? `
+    ${pageStart('Breakeven Analysis')}
+        <h2 class="section-title">Breakeven Analysis</h2>
+        <p class="section-subtitle">Customers needed at each price point to cover costs</p>
+
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Breakeven Table')}</div>
+            <table class="voya-table">
+                <thead><tr>
+                    <th>Price Point</th><th>Price</th><th>Gross Margin %</th><th>Customers to Cover Monthly Costs</th><th>Months to Recover Dev Investment</th>
+                </tr></thead>
+                <tbody>
+                    <tr>
+                        <td>Entry (Floor)</td>
+                        <td class="text-teal">${cs}${fmt(budget)}</td>
+                        <td style="font-weight:400;">${budget > 0 ? ((budget - totalUnitCost) / budget * 100).toFixed(1) : '0'}%</td>
+                        <td style="font-weight:400;">${budget > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (budget - totalUnitCost)) : '\u221E'}</td>
+                        <td style="font-weight:400;">${budget > totalUnitCost ? Math.ceil(totalUnitCost * 50 / (budget - totalUnitCost)) : '\u221E'}</td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td><strong>Optimal (Recommended)</strong></td>
+                        <td class="text-teal"><strong>${cs}${fmt(recommended)}</strong></td>
+                        <td style="font-weight:600;">${recommended > 0 ? ((recommended - totalUnitCost) / recommended * 100).toFixed(1) : '0'}%</td>
+                        <td style="font-weight:600;">${recommended > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (recommended - totalUnitCost)) : '\u221E'}</td>
+                        <td style="font-weight:600;">${recommended > totalUnitCost ? Math.ceil(totalUnitCost * 50 / (recommended - totalUnitCost)) : '\u221E'}</td>
+                    </tr>
+                    <tr>
+                        <td>Premium (Anchor)</td>
+                        <td class="text-teal">${cs}${fmt(premium)}</td>
+                        <td style="font-weight:400;">${premium > 0 ? ((premium - totalUnitCost) / premium * 100).toFixed(1) : '0'}%</td>
+                        <td style="font-weight:400;">${premium > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (premium - totalUnitCost)) : '\u221E'}</td>
+                        <td style="font-weight:400;">${premium > totalUnitCost ? Math.ceil(totalUnitCost * 50 / (premium - totalUnitCost)) : '\u221E'}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="footnote">Based on total unit cost of ${cs}${fmt(totalUnitCost)}. Monthly cost coverage assumes 10x operating overhead. Dev recovery assumes 50x unit cost.</p>
+            ${trackSource('PricePoint Breakeven Analysis')}
+        </div>
+
+        ${isBasic && txt(d.cost_of_inaction) ? `
+        <div class="inaction-callout">
+            <div class="ic-label">Cost of Inaction</div>
+            <div class="ic-calc">${esc(d.cost_of_inaction)}</div>
+        </div>` : ''}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         BASIC ONLY: Top Risks + Next Steps
          ═══════════════════════════════════════════════ -->
     ${isBasic ? `
-    ${pageStart('Pricing Analysis')}
-        <h2 class="section-title">Pricing Analysis</h2>
-        <p class="section-subtitle">Detailed commentary on your three pricing tiers</p>
-
-        ${d.pricing_analysis ? `
-            <!-- Pricing Donut Chart -->
-            <div class="exhibit-box">
-                <div class="exhibit-header">${nextExhibit('Price Tier Distribution')}</div>
-                <div class="chart-container" style="display:flex;align-items:center;gap:24px;">
-                    ${generateDonutChartSVG([
-                        { label: 'Entry Floor', value: budget, color: V.gray },
-                        { label: 'Optimal', value: recommended, color: V.teal },
-                        { label: 'Premium', value: premium, color: V.orange },
-                    ])}
-                    <div style="flex:1;">
-                        <p style="font-size:13px;color:${V.gray};margin:0 0 8px 0;">The donut chart illustrates the relative distribution across your three pricing tiers, showing how each price point contributes to the overall pricing strategy.</p>
-                    </div>
-                </div>
-                <p class="source-note">PricePoint Pricing Engine — tier allocation</p>
-                ${trackSource('PricePoint Pricing Engine — tier allocation')}
-            </div>
-
-            <h3 class="subsection-title">Survival Price Commentary</h3>
-            <p class="paragraph">${esc(txt(d.pricing_analysis.survival_commentary))}</p>
-            <h3 class="subsection-title">Best Price Commentary</h3>
-            <p class="paragraph">${esc(txt(d.pricing_analysis.best_price_commentary))}</p>
-            <h3 class="subsection-title">Premium Price Commentary</h3>
-            <p class="paragraph">${esc(txt(d.pricing_analysis.premium_price_commentary))}</p>
-            <div class="callout">
-                <div class="callout-label">Recommended Anchor: <span class="badge badge-teal">${esc(txt(d.pricing_analysis.recommended_anchor, 'best')).toUpperCase()}</span></div>
-                <p style="margin: 6px 0 0 0; font-size: 14px;">${esc(txt(d.pricing_analysis.anchor_rationale))}</p>
-            </div>
-        ` : ''}
-
-        <hr class="voya-divider">
-
-        <h2 class="section-title">Top Risks</h2>
+    ${pageStart('Risks &amp; Next Steps')}
+        <h2 class="section-title">Top Risks &amp; Mitigations</h2>
+        <p class="section-subtitle">Key risks to monitor and strategies to mitigate them</p>
         ${arr(d.top_risks).map((risk: any) => `
         <div class="exhibit-box" style="border-left: 4px solid ${risk.severity === 'High' ? V.red : risk.severity === 'Medium' ? V.orange : V.green};">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <strong style="color: var(--voya-dark); font-size: 14px;">${esc(risk.risk || '')}</strong>
                 <span class="badge badge-${risk.severity === 'High' ? 'red' : risk.severity === 'Medium' ? 'orange' : 'green'}">${esc(risk.severity || '')}</span>
             </div>
-            <p class="footnote" style="margin-top: 6px;">Mitigation: ${esc(risk.mitigation || '')}</p>
+            <p class="paragraph" style="margin-top: 6px; font-size: 13px;">${esc(risk.mitigation || '')}</p>
         </div>`).join('')}
 
-        <h2 class="section-title" style="margin-top: 24px;">Next Steps</h2>
+        <hr class="voya-divider">
+
+        <h2 class="section-title">Next Steps</h2>
+        <p class="section-subtitle">Prioritised actions to take now</p>
         ${arr(d.next_steps).map((step: string, i: number) => `
-        <div style="display:flex;gap:12px;margin-bottom:10px;align-items:flex-start;">
-            <div style="min-width:28px;height:28px;border-radius:50%;background:${V.teal};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${i + 1}</div>
+        <div style="display:flex;gap:12px;margin-bottom:12px;align-items:flex-start;">
+            <div style="min-width:32px;height:32px;border-radius:50%;background:${V.teal};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">${i + 1}</div>
             <p class="paragraph" style="margin:4px 0 0 0;">${esc(step)}</p>
         </div>`).join('')}
     ${pageEnd}
