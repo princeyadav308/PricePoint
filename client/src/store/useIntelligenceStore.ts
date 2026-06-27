@@ -183,7 +183,8 @@ export const useIntelligenceStore = create<IntelligenceState>((set) => ({
     runPreFill: async (urlOrName: string) => {
         set({ preFillStatus: 'loading' });
         try {
-            const isUrl = urlOrName.includes('.') && (urlOrName.startsWith('http') || urlOrName.includes('www'));
+            // Treat as URL if it contains a dot, has no spaces, and is long enough
+            const isUrl = urlOrName.includes('.') && !urlOrName.includes(' ') && urlOrName.length > 3;
             const body = isUrl ? { url: urlOrName.startsWith('http') ? urlOrName : `https://${urlOrName}` } : { productName: urlOrName };
 
             const resp = await fetch(`${API_BASE}/api/intelligence/prefill-product`, {

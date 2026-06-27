@@ -119,7 +119,7 @@ const MindMapInner = () => {
                 nodesDraggable={false}
                 nodesConnectable={false}
                 elementsSelectable={true}
-                panOnDrag={[1]}
+                panOnDrag={true}
                 panOnScroll={true}
                 zoomOnScroll={true}
                 className="!bg-background-light dark:!bg-background-dark"

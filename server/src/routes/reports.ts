@@ -30,7 +30,7 @@ export default async function (server: FastifyInstance) {
                 user = data.user;
             }
 
-            const { sessionData, pricingResult, tier } = request.body as any;
+            const { sessionData, pricingResult, tier, intelligenceData } = request.body as any;
 
             if (!sessionData || !tier || !pricingResult) {
                 return reply.status(400).send({ error: 'Missing sessionData, tier, or pricingResult' });
@@ -48,15 +48,15 @@ export default async function (server: FastifyInstance) {
                 lead = await prisma.lead.update({ where: { email }, data: { supabaseUserId } });
             }
 
-            // Attach the pricingResult to rawData so it survives page redirects!
-            const finalData = { ...sessionData, pricingResult };
+            // Attach the pricingResult and intelligenceData to rawData so it survives page redirects!
+            const finalData = { ...sessionData, pricingResult, intelligenceData: intelligenceData || null };
 
             // Create the Session record
             const session = await prisma.session.create({
                 data: {
                     leadId: lead.id,
                     journeyType: sessionData.journeyType || 'Pricing Strategy',
-                    rawData: finalData, // Store combined state + result
+                    rawData: finalData, // Store combined state + result + intelligence
                 }
             });
 

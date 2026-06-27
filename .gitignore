@@ -44,3 +44,5 @@ PriceIQ_PRD_v2.0.md
 # TestSprite (auto-generated test files)
 testsprite_tests/
 .testsprite/
+
+testsprite_tests\tmp\config.json

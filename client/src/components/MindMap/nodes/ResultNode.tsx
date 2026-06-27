@@ -3,6 +3,7 @@ import { Handle, Position, NodeProps } from 'reactflow';
 import { Crown, TrendingUp, Zap, FileText, Lock, Mail, ChevronDown, Check as CheckIcon, X as XIcon, AlertTriangle } from 'lucide-react';
 import type { PricingResult } from '../../../utils/pricingEngine';
 import { useSessionStore } from '../../../store/useSessionStore';
+import { useIntelligenceStore } from '../../../store/useIntelligenceStore';
 import { AuthModal } from '../../AuthModal';
 import { getCurrencyFromAnswers } from '../../../utils/currency';
 import { supabase } from '../../../lib/supabase';
@@ -141,6 +142,18 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
         try {
             const fullSessionData = useSessionStore.getState();
 
+            // Build enriched intelligence payload
+            const intel = useIntelligenceStore.getState();
+            const intelligenceData = {
+                geo: intel.geoData,
+                preFill: intel.preFillData,
+                competitors: intel.confirmedCompetitors.length > 0 ? intel.confirmedCompetitors : intel.discoveredCompetitors,
+                competitorPricing: intel.competitorPricing,
+                marketPriceRange: intel.marketPriceRange,
+                demand: intel.demandData,
+                vwAlerts: intel.vwAlerts,
+            };
+
             // Get Supabase Session Token
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
@@ -159,8 +172,9 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                 },
                 body: JSON.stringify({
                     sessionData: fullSessionData,
-                    pricingResult: data.result,  // Send the calculated numbers!
-                    tier: tier
+                    pricingResult: data.result,
+                    tier: tier,
+                    intelligenceData,
                 })
             });
 

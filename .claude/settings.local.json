@@ -5,7 +5,10 @@
       "Bash(timeout 15 npx tsx:*)",
       "Bash(curl:*)",
       "Bash(node test_pdf.js:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

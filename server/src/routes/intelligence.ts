@@ -219,35 +219,69 @@ export default async function intelligenceRoutes(server: FastifyInstance) {
         const scrapingdogKey = process.env.SCRAPINGDOG_API_KEY;
         console.log(`[Prefill] URL: ${url} | scrapingdogKey: ${scrapingdogKey ? `SET (${scrapingdogKey.length} chars)` : 'MISSING'}`);
 
-        // If URL provided and we have a scraping key, scrape it
-        if (url && scrapingdogKey) {
-            console.log('[Prefill] Starting scrape+Claude chain for: ' + url);
-            console.log('[Prefill] Scrapingdog key present: ' + !!scrapingdogKey + ' | Anthropic key present: ' + !!process.env.ANTHROPIC_API_KEY);
-            const result = await fetchWithFallback(async () => {
-                // Step 1: Scrape the URL
-                const scrapeResp = await axios.get('https://api.scrapingdog.com/scrape', {
-                    params: {
-                        api_key: scrapingdogKey,
-                        url: url,
-                        dynamic: 'false',
-                    },
-                });
+        // ── Helper: scrape HTML from a URL (multi-tier strategy) ──
+        async function scrapeHtml(targetUrl: string): Promise<string> {
+            // Tier 1: Try Scrapingdog if key is available
+            if (scrapingdogKey) {
+                try {
+                    console.log('[Prefill] Trying Scrapingdog for: ' + targetUrl);
+                    const scrapeResp = await axios.get('https://api.scrapingdog.com/scrape', {
+                        params: {
+                            api_key: scrapingdogKey,
+                            url: targetUrl,
+                            dynamic: 'false',
+                        },
+                        timeout: 20000,
+                    });
 
-                const htmlContent = typeof scrapeResp.data === 'string'
-                    ? scrapeResp.data.substring(0, 15000) // limit to 15K chars
-                    : JSON.stringify(scrapeResp.data).substring(0, 15000);
+                    // Check if Scrapingdog returned an error response
+                    const respData = scrapeResp.data;
+                    if (typeof respData === 'object' && respData.success === false) {
+                        throw new Error(`Scrapingdog error: ${respData.message || 'limit reached'}`);
+                    }
 
-                console.log('[Prefill] Scrape done. HTML length: ' + htmlContent.length + ' | Sending to Claude...');
+                    const html = typeof respData === 'string'
+                        ? respData.substring(0, 15000)
+                        : JSON.stringify(respData).substring(0, 15000);
+                    console.log('[Prefill] Scrapingdog success. HTML length: ' + html.length);
+                    return html;
+                } catch (sdError: any) {
+                    console.warn('[Prefill] Scrapingdog failed:', sdError.message || 'Unknown error');
+                    // Fall through to Tier 2
+                }
+            }
 
-                // Step 2: Send to Claude for extraction
-                const claude = getClaude();
-                const extraction = await claude.messages.create({
-                    model: 'claude-3-5-sonnet-latest',
-                    max_tokens: 1000,
-                    temperature: 0,
-                    messages: [{
-                        role: 'user',
-                        content: `You are a product intelligence extractor. Given the following HTML from a product website, extract and return ONLY a JSON object with these fields:
+            // Tier 2: Direct fetch (works for most public pages that don't require JS)
+            console.log('[Prefill] Trying direct fetch for: ' + targetUrl);
+            const fetchResp = await fetch(targetUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                },
+                signal: AbortSignal.timeout(15000),
+            });
+
+            if (!fetchResp.ok) {
+                throw new Error(`Direct fetch failed: ${fetchResp.status} ${fetchResp.statusText}`);
+            }
+
+            const html = await fetchResp.text();
+            const trimmed = html.substring(0, 15000);
+            console.log('[Prefill] Direct fetch success. HTML length: ' + trimmed.length);
+            return trimmed;
+        }
+
+        // ── Helper: send HTML to Claude for extraction ──
+        async function extractWithClaude(htmlContent: string, sourceUrl: string) {
+            const claude = getClaude();
+            const extraction = await claude.messages.create({
+                model: 'claude-sonnet-4-6',
+                max_tokens: 1000,
+                temperature: 0,
+                messages: [{
+                    role: 'user',
+                    content: `You are a product intelligence extractor. Given the following HTML from a product website, extract and return ONLY a JSON object with these fields:
 {
   "productName": string,
   "productDescription": string (2-3 sentences max, plain text),
@@ -261,37 +295,44 @@ If a field cannot be determined, return null for that field. Return ONLY valid J
 
 HTML:
 ${htmlContent}`
-                    }],
-                });
+                }],
+            });
 
-                const textBlock = extraction.content[0];
-                const rawText = textBlock.type === 'text' ? textBlock.text : '{}';
-                console.log('[Prefill] Claude extraction done. Raw text length: ' + rawText.length);
+            const textBlock = extraction.content[0];
+            const rawText = textBlock.type === 'text' ? textBlock.text : '{}';
+            console.log('[Prefill] Claude extraction done. Raw text length: ' + rawText.length);
 
-                // Parse the extraction
-                let parsed;
-                try {
-                    const jsonStart = rawText.indexOf('{');
-                    const jsonEnd = rawText.lastIndexOf('}');
-                    parsed = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
-                } catch {
-                    parsed = {};
-                }
+            let parsed;
+            try {
+                const jsonStart = rawText.indexOf('{');
+                const jsonEnd = rawText.lastIndexOf('}');
+                parsed = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
+            } catch {
+                parsed = {};
+            }
 
-                return {
-                    success: true as const,
-                    data: {
-                        productName: parsed.productName || null,
-                        description: parsed.productDescription || null,
-                        category: parsed.productCategory || null,
-                        subCategory: parsed.productSubCategory || null,
-                        targetCustomer: parsed.targetCustomer || null,
-                        geographyServed: parsed.geographyServed || null,
-                        valueUsp: parsed.uniqueValueProp || null,
-                        sourceUrl: url,
-                    },
-                };
-            }, fallback, 45000); // 45s timeout for scrape+Claude chain
+            return {
+                success: true as const,
+                data: {
+                    productName: parsed.productName || null,
+                    description: parsed.productDescription || null,
+                    category: parsed.productCategory || null,
+                    subCategory: parsed.productSubCategory || null,
+                    targetCustomer: parsed.targetCustomer || null,
+                    geographyServed: parsed.geographyServed || null,
+                    valueUsp: parsed.uniqueValueProp || null,
+                    sourceUrl: sourceUrl,
+                },
+            };
+        }
+
+        // If URL provided, scrape + extract
+        if (url) {
+            console.log('[Prefill] Starting scrape+Claude chain for: ' + url);
+            const result = await fetchWithFallback(async () => {
+                const htmlContent = await scrapeHtml(url);
+                return await extractWithClaude(htmlContent, url);
+            }, fallback, 60000); // 60s timeout for scrape+Claude chain
 
             return reply.send(result);
         }
@@ -446,17 +487,39 @@ ${htmlContent}`
         const results = await Promise.all(
             cappedUrls.map(async (url) => {
                 return fetchWithFallback(async () => {
-                    // Step 1: Scrape
-                    const scrapeResp = await axios.get('https://api.scrapingdog.com/scrape', {
-                        params: {
-                            api_key: scrapingdogKey,
-                            url,
-                            dynamic: 'false',
-                        },
-                    });
+                    // Step 1: Scrape (Scrapingdog → direct fetch fallback)
+                    let textContent = '';
+                    let scraped = false;
 
-                    let textContent = typeof scrapeResp.data === 'string'
-                        ? scrapeResp.data : JSON.stringify(scrapeResp.data);
+                    if (scrapingdogKey) {
+                        try {
+                            const scrapeResp = await axios.get('https://api.scrapingdog.com/scrape', {
+                                params: { api_key: scrapingdogKey, url, dynamic: 'false' },
+                                timeout: 20000,
+                            });
+                            const respData = scrapeResp.data;
+                            if (typeof respData === 'object' && respData.success === false) {
+                                throw new Error(`Scrapingdog error: ${respData.message}`);
+                            }
+                            textContent = typeof respData === 'string' ? respData : JSON.stringify(respData);
+                            scraped = true;
+                        } catch (sdErr: any) {
+                            console.warn(`[ScrapePrice] Scrapingdog failed for ${url}:`, sdErr.message);
+                        }
+                    }
+
+                    if (!scraped) {
+                        // Fallback: direct fetch
+                        const fetchResp = await fetch(url, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                            },
+                            signal: AbortSignal.timeout(15000),
+                        });
+                        if (!fetchResp.ok) throw new Error(`Direct fetch failed: ${fetchResp.status}`);
+                        textContent = await fetchResp.text();
+                    }
 
                     // Strip HTML tags, keep text
                     textContent = textContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').substring(0, 12000);
@@ -464,7 +527,7 @@ ${htmlContent}`
                     // Step 2: Claude extraction
                     const claude = getClaude();
                     const extraction = await claude.messages.create({
-                        model: 'claude-3-5-sonnet-latest',
+                        model: 'claude-sonnet-4-6',
                         max_tokens: 1000,
                         temperature: 0,
                         messages: [{

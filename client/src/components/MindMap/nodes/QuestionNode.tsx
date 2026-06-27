@@ -1,17 +1,19 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import {
     Package, SearchCheck, Rocket, TrendingUp,
     Compass, Users, ChevronRight, Check, Globe,
     Gem, Calculator, Target, FileText, Boxes,
     Briefcase, Monitor, Receipt, Plus, Trash2, BarChart3,
-    Lightbulb, X,
+    Lightbulb, X, AlertTriangle, Sparkles,
 } from 'lucide-react';
 import type { StageConfig, QuestionField, UnitEconomicsRow } from '../../../data/questions.config';
 import { STAGE_MAP, PRODUCT_TYPE_TO_DEEP_DIVE } from '../../../data/questions.config';
 import { useMindMapStore } from '../../../store/useMindMapStore';
 import { useSessionStore } from '../../../store/useSessionStore';
+import { useIntelligenceStore } from '../../../store/useIntelligenceStore';
 import type { SessionStage } from '../../../types/session';
+import { MarketIntelligencePanel } from './MarketIntelligencePanel';
 import { getCurrencyFromAnswers } from '../../../utils/currency';
 
 // ============================================================
@@ -455,6 +457,42 @@ const UnitEconomicsField = ({
     );
 };
 
+// ── VW Alert Card ────────────────────────────────────────────
+const VWAlertCard = ({
+    type: _type, severity, message, suggestion,
+}: {
+    type: string; severity: string; message: string; suggestion?: string;
+}) => (
+    <div className={`px-4 py-3 rounded-xl border ${
+        severity === 'High'
+            ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30'
+            : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30'
+    }`}>
+        <div className="flex items-start gap-2">
+            <AlertTriangle size={14} className={severity === 'High' ? 'text-red-500 mt-0.5' : 'text-amber-500 mt-0.5'} />
+            <div className="flex-1">
+                <p className={`text-xs font-medium leading-relaxed ${
+                    severity === 'High' ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'
+                }`}>
+                    {message}
+                </p>
+                {suggestion && (
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 italic">
+                        💡 {suggestion}
+                    </p>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
+// ── Auto-detect badge ────────────────────────────────────────
+const AutoDetectedBadge = () => (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full ml-2">
+        <Sparkles size={9} /> Auto-filled
+    </span>
+);
+
 // ── Main Component ───────────────────────────────────────────
 export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => {
     const { config } = data;
@@ -463,6 +501,7 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
     const [submitted, setSubmitted] = useState(false);
     const [naFields, setNaFields] = useState<Set<string>>(new Set());
     const [helpExpanded, setHelpExpanded] = useState<Set<string>>(new Set());
+    const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
     const submitStage = useMindMapStore((s) => s.submitStage);
     const spawnBranches = useMindMapStore((s) => s.spawnBranches);
@@ -472,6 +511,108 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
     const completeStage = useSessionStore((s) => s.completeStage);
     const sessionAnswers = useSessionStore((s) => s.answers);
     const { fitView } = useReactFlow();
+
+    // Intelligence store
+    const geoData = useIntelligenceStore((s) => s.geoData);
+    const preFillData = useIntelligenceStore((s) => s.preFillData);
+    const marketPriceRange = useIntelligenceStore((s) => s.marketPriceRange);
+    const vwAlerts = useIntelligenceStore((s) => s.vwAlerts);
+    const validateVanWestendorp = useIntelligenceStore((s) => s.validateVanWestendorp);
+    const runCompetitorDiscovery = useIntelligenceStore((s) => s.runCompetitorDiscovery);
+    const runDemandAnalysis = useIntelligenceStore((s) => s.runDemandAnalysis);
+
+    // ── Auto-populate from intelligence data on mount ─────────
+    // Grab discovered competitors for auto-fill
+    const discoveredCompetitors = useIntelligenceStore((s) => s.discoveredCompetitors);
+
+    useEffect(() => {
+        if (submitted) return;
+        const autoFilled: Record<string, any> = {};
+        const autoFieldIds = new Set<string>();
+
+        // Build enriched description from pre-fill fragments
+        const rawDesc = preFillData?.description || sessionAnswers['product_description_prefill']?.value as string || '';
+        const targetCust = preFillData?.targetCustomer || sessionAnswers['target_customer_prefill']?.value as string || '';
+        const usp = preFillData?.valueUsp || sessionAnswers['usp_prefill']?.value as string || '';
+        let enrichedDescription = rawDesc;
+        if (targetCust && !rawDesc.toLowerCase().includes(targetCust.toLowerCase())) {
+            enrichedDescription += ` Target customer: ${targetCust}.`;
+        }
+        if (usp && !rawDesc.toLowerCase().includes(usp.toLowerCase())) {
+            enrichedDescription += ` Unique value: ${usp}.`;
+        }
+
+        // Map pre-fill data to question field IDs
+        const preFillMap: Record<string, string | undefined> = {
+            product_name: preFillData?.productName || sessionAnswers['product_name_prefill']?.value as string,
+            product_description_text: enrichedDescription.trim() || undefined,
+        };
+
+        // Map geo data
+        if (geoData) {
+            const countryMap: Record<string, string> = {
+                US: 'United States', GB: 'United Kingdom', IN: 'India',
+                DE: 'European Union', FR: 'European Union', IT: 'European Union', ES: 'European Union',
+                CA: 'Canada', AU: 'Australia',
+            };
+            const currencyMap: Record<string, string> = {
+                USD: 'USD ($)', EUR: 'EUR (€)', GBP: 'GBP (£)',
+                INR: 'INR (₹)', CAD: 'CAD (C$)', AUD: 'AUD (A$)',
+            };
+            preFillMap['business_country'] = countryMap[geoData.countryCode] || sessionAnswers['geo_country']?.value as string;
+            preFillMap['currency'] = currencyMap[geoData.currency] || undefined;
+            if (geoData.suggestedVatRate > 0) {
+                preFillMap['tax_rate'] = String(geoData.suggestedVatRate);
+            }
+        }
+
+        // Map product category from pre-fill
+        const catPrefill = preFillData?.category || sessionAnswers['product_category_prefill']?.value as string;
+        if (catPrefill) {
+            preFillMap['product_type'] = catPrefill;
+        }
+
+        // Map market price range from competitor scraping
+        if (marketPriceRange) {
+            preFillMap['competitor_price_low'] = String(marketPriceRange.min);
+            preFillMap['competitor_price_high'] = String(marketPriceRange.max);
+        }
+
+        // Map competitor count from discovered competitors
+        if (discoveredCompetitors.length > 0) {
+            preFillMap['competitor_count'] = String(discoveredCompetitors.length);
+        }
+
+        // Apply only for fields that exist in this stage config
+        for (const field of config.fields) {
+            const preFillValue = preFillMap[field.id];
+            if (preFillValue && formState[field.id] === undefined) {
+                // For sliders/numbers, parse to number
+                if (field.type === 'slider' || field.type === 'number') {
+                    const num = Number(preFillValue);
+                    if (!isNaN(num)) {
+                        autoFilled[field.id] = num;
+                        autoFieldIds.add(field.id);
+                    }
+                } else {
+                    autoFilled[field.id] = preFillValue;
+                    autoFieldIds.add(field.id);
+                }
+            }
+        }
+
+        if (Object.keys(autoFilled).length > 0) {
+            setFormState((prev) => ({ ...autoFilled, ...prev }));
+            setAutoFilledFields((prev) => new Set([...prev, ...autoFieldIds]));
+        }
+    }, [
+        config.id,
+        submitted,
+        preFillData,
+        geoData,
+        marketPriceRange,
+        discoveredCompetitors.length
+    ]); // Re-run when async intelligence data arrives
 
     const handleChange = useCallback((fieldId: string, value: unknown) => {
         setFormState((prev) => ({ ...prev, [fieldId]: value }));
@@ -543,6 +684,42 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         completeStage(config.id as any);
         setSubmitted(true);
+
+        // ── Van Westendorp validation against market data ────
+        if (config.id === 'van_westendorp') {
+            const vwValues = {
+                tooCheap: Number(formState['too_cheap']) || 0,
+                bargain: Number(formState['bargain']) || 0,
+                gettingExpensive: Number(formState['getting_expensive']) || 0,
+                tooExpensive: Number(formState['too_expensive']) || 0,
+            };
+            // Build market data from intelligence store or manual answers
+            const mpr = useIntelligenceStore.getState().marketPriceRange;
+            const competitorMin = mpr?.min || Number(sessionAnswers['competitor_price_low']?.value) || 0;
+            const competitorMax = mpr?.max || Number(sessionAnswers['competitor_price_high']?.value) || 0;
+            const competitorAvg = mpr?.average || (competitorMin && competitorMax ? Math.round((competitorMin + competitorMax) / 2) : 0);
+            const mkData = competitorMin > 0 && competitorMax > 0
+                ? { competitorMin, competitorMax, competitorAvg }
+                : undefined;
+            validateVanWestendorp(vwValues, mkData);
+        }
+
+        // ── Auto-trigger competitor discovery + demand analysis ──
+        if (config.id === 'product_classification') {
+            const productName = formState['product_name']
+                ?? sessionAnswers['product_name_prefill']?.value
+                ?? '';
+            const productType = formState['product_type'] ?? '';
+            const country = formState['business_country']
+                ?? sessionAnswers['geo_country']?.value
+                ?? 'United States';
+
+            if (productName) {
+                // Fire-and-forget — both are non-blocking
+                runCompetitorDiscovery(String(productName), String(productType), String(country));
+                runDemandAnalysis(String(productName), String(country));
+            }
+        }
 
         // ── Dynamic routing for product_deep_dive ────────────
         let resolvedNextStageId = config.nextStageId;
@@ -779,6 +956,7 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
                             <div className="flex items-start gap-2">
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400 ml-1 leading-snug flex-1">
                                     {field.label}
+                                    {autoFilledFields.has(field.id) && !submitted && <AutoDetectedBadge />}
                                 </label>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                     {field.helpText && (
@@ -823,6 +1001,23 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
                         </div>
                     ))}
                 </div>
+
+                {/* ── Market Intelligence Panel (market_research stage) ── */}
+                {config.id === 'market_research' && (
+                    <MarketIntelligencePanel />
+                )}
+
+                {/* ── Van Westendorp Cross-Reference Alerts ── */}
+                {config.id === 'van_westendorp' && submitted && vwAlerts.length > 0 && (
+                    <div className="mt-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1">
+                            Market Cross-Reference Alerts
+                        </p>
+                        {vwAlerts.map((alert, i) => (
+                            <VWAlertCard key={i} {...alert} />
+                        ))}
+                    </div>
+                )}
 
                 {/* Footer */}
                 <div className="mt-6 flex justify-end">

@@ -180,28 +180,75 @@ CRITICAL RULES:
 function buildIntelligenceBlock(intelligenceData: any): string {
     if (!intelligenceData) return '';
 
-    const ci = intelligenceData.competitiveIntelligence;
-    const md = intelligenceData.marketDemand;
-    const tc = intelligenceData.taxAndCurrency;
-    const vwa = intelligenceData.vanWestendorpAlerts;
+    // ── Duck-type: support BOTH old shape and new frontend shape ──
+    // Old shape: { competitiveIntelligence, marketDemand, taxAndCurrency, vanWestendorpAlerts }
+    // New shape: { geo, preFill, competitors, competitorPricing, marketPriceRange, demand, vwAlerts }
+
+    // Competitors + Pricing
+    const competitors = intelligenceData.competitors
+        || intelligenceData.competitiveIntelligence?.competitors
+        || [];
+    const competitorPricing = intelligenceData.competitorPricing || [];
+    const marketPriceRange = intelligenceData.marketPriceRange
+        || intelligenceData.competitiveIntelligence?.marketPriceRange
+        || null;
+
+    // Demand
+    const demand = intelligenceData.demand
+        || intelligenceData.marketDemand
+        || null;
+
+    // Geo / Tax
+    const geo = intelligenceData.geo
+        || intelligenceData.taxAndCurrency
+        || null;
+
+    // VW Alerts
+    const vwAlerts = intelligenceData.vwAlerts
+        || intelligenceData.vanWestendorpAlerts
+        || [];
+
+    // Pre-fill
+    const preFill = intelligenceData.preFill || null;
 
     let block = `\n═══════════════════════════════════════════════\nAUTO-INTELLIGENCE DATA (VERIFIED MARKET DATA — HIGHER TRUST THAN USER ESTIMATES)\n═══════════════════════════════════════════════\n`;
 
-    if (ci && ci.competitors && ci.competitors.length > 0) {
-        const range = ci.marketPriceRange || {};
-        block += `\nCOMPETITIVE INTELLIGENCE (scraped from live competitor websites):\nMarket Price Range: $${range.min || 'N/A'} – $${range.max || 'N/A'} (avg: $${range.average || 'N/A'})\nData Source: ${ci.source || 'auto_scraped'} | Scraped: ${ci.scrapedAt || 'recent'}\n\nCompetitor Breakdown:\n${JSON.stringify(ci.competitors, null, 2)}\n`;
+    // Competitive Intelligence
+    if (competitors.length > 0 || competitorPricing.length > 0) {
+        block += `\nCOMPETITIVE INTELLIGENCE (scraped from live competitor websites):\n`;
+        if (marketPriceRange) {
+            block += `Market Price Range: $${marketPriceRange.min || 'N/A'} – $${marketPriceRange.max || 'N/A'} (avg: $${marketPriceRange.average || 'N/A'}, median: $${marketPriceRange.median || 'N/A'})\n`;
+        }
+        block += `Data Source: auto_scraped | Competitors Found: ${competitors.length}\n`;
+        if (competitors.length > 0) {
+            block += `\nDiscovered Competitors:\n${JSON.stringify(competitors, null, 2)}\n`;
+        }
+        if (competitorPricing.length > 0) {
+            block += `\nScraped Pricing Breakdown:\n${JSON.stringify(competitorPricing, null, 2)}\n`;
+        }
     }
 
-    if (md && md.monthlySearchVolume) {
-        block += `\nMARKET DEMAND SIGNAL (DataForSEO):\nKeyword: "${md.keyword || 'N/A'}"\nMonthly Search Volume: ${md.monthlySearchVolume}\nCompetition Level: ${md.competitionLevel || 'N/A'}\nCost Per Click: $${md.costPerClick || 0} (commercial intent proxy)\nDemand Signal: ${md.demandSignal || 'N/A'}\n`;
+    // Market Demand
+    if (demand && (demand.monthlySearchVolume || demand.keyword)) {
+        block += `\nMARKET DEMAND SIGNAL (DataForSEO):\nKeyword: "${demand.keyword || 'N/A'}"\nMonthly Search Volume: ${demand.monthlySearchVolume || 'N/A'}\nCompetition Level: ${demand.competitionLevel || 'N/A'}\nCost Per Click: $${demand.costPerClick || 0} (commercial intent proxy)\nDemand Signal: ${demand.demandSignal || 'N/A'}\nInterpretation: ${demand.demandInterpretation || 'N/A'}\n`;
     }
 
-    if (tc) {
-        block += `\nTAX & CURRENCY CONTEXT:\nCountry: ${tc.country || 'N/A'} | VAT/GST Rate: ${tc.vatGstRate || 0}%\nBase Currency: ${tc.baseCurrency || 'USD'} | USD Rate: ${tc.usdConversionRate || 1}\n`;
+    // Tax & Currency
+    if (geo) {
+        const country = geo.country || 'N/A';
+        const vatRate = geo.suggestedVatRate ?? geo.vatGstRate ?? 0;
+        const currency = geo.currency || geo.baseCurrency || 'USD';
+        block += `\nTAX & CURRENCY CONTEXT:\nCountry: ${country} (${geo.countryCode || 'N/A'}) | VAT/GST Rate: ${vatRate}%\nCurrency: ${currency} | Timezone: ${geo.timezone || 'N/A'}\n`;
     }
 
-    if (vwa && vwa.length > 0) {
-        block += `\nVAN WESTENDORP VALIDATION ALERTS:\n${JSON.stringify(vwa, null, 2)}\n`;
+    // Pre-fill product context
+    if (preFill) {
+        block += `\nPRODUCT PRE-FILL (AI-extracted from user's website):\nProduct Name: ${preFill.productName || 'N/A'}\nCategory: ${preFill.category || 'N/A'} ${preFill.subCategory ? `/ ${preFill.subCategory}` : ''}\nTarget Customer: ${preFill.targetCustomer || 'N/A'}\nGeography: ${preFill.geographyServed || 'N/A'}\nUSP: ${preFill.valueUsp || 'N/A'}\nSource URL: ${preFill.sourceUrl || 'N/A'}\n`;
+    }
+
+    // VW Alerts
+    if (vwAlerts.length > 0) {
+        block += `\nVAN WESTENDORP VALIDATION ALERTS:\n${JSON.stringify(vwAlerts, null, 2)}\n`;
     }
 
     block += `\n───────────────────────────────────────────────\nCRITICAL INSTRUCTION FOR AUTO-INTELLIGENCE DATA:\nWhen the above market data is present (source = "auto_scraped" or "dataforseo"),\ntreat it as verified external data — more reliable than the user's own estimates.\nCross-reference all your analysis against this market reality.\nIf user assumptions conflict with market data, flag this explicitly as a\n"Market Reality Gap" finding. For example:\n- If the user's target price is above the market max → flag premium positioning risk\n- If user's volume assumptions imply market share >15% in year 1 → flag as aggressive\n- If user's CAC estimate is below industry CPC benchmarks → flag as likely underestimated\n───────────────────────────────────────────────\n`;
