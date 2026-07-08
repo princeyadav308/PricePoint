@@ -12,6 +12,7 @@ import { JourneyNode } from './nodes/JourneyNode';
 import { StageNode } from './nodes/StageNode';
 import { QuestionNode } from './nodes/QuestionNode';
 import { ResultNode } from './nodes/ResultNode';
+import { ProductIntelEntry } from './nodes/ProductIntelEntry';
 import { AnimatedEdge } from './edges/AnimatedEdge';
 
 const nodeTypes = {
@@ -20,6 +21,7 @@ const nodeTypes = {
     stageNode: StageNode,
     classificationNode: QuestionNode,
     resultNode: ResultNode,
+    productIntelEntry: ProductIntelEntry,
 };
 
 const edgeTypes = {

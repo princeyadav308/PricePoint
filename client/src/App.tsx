@@ -5,6 +5,7 @@ import { LandingView } from './components/LandingView';
 import { MindMap } from './components/MindMap/MindMap';
 import { useMindMapStore } from './store/useMindMapStore';
 import { useSessionStore } from './store/useSessionStore';
+import { useIntelligenceStore } from './store/useIntelligenceStore';
 import { supabase } from './lib/supabase';
 import { useEffect } from 'react';
 
@@ -18,6 +19,9 @@ function App() {
   };
 
   useEffect(() => {
+    // Fire geolocation silently on app load (non-blocking)
+    useIntelligenceStore.getState().runGeolocate();
+
     // Check active session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       useSessionStore.getState().setUser(session?.user ?? null);

@@ -134,31 +134,35 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
         set({ isExpanded: true, nodes: updatedNodes, selectedJourney: type });
     },
 
-    // ── expandJourney — spawns Journey Root Questions ────────
+    // ── expandJourney — spawns Product Intel Entry (Question 0) ─
     expandJourney: (parentId: string) => {
         const { nodes, edges } = get();
 
         // Determine journey type from the clicked node
         const journeyType: JourneyType = parentId === 'journey-a' ? 'established_seller' : 'new_launcher';
 
-        // Pick the correct root questions config
+        // Pick the correct root questions config for after intel entry
         const rootConfig = journeyType === 'established_seller' ? JOURNEY_A_ROOT : JOURNEY_B_ROOT;
-        const newNodeId = `stage-${rootConfig.id}`;
 
-        if (nodes.some((n) => n.id === newNodeId)) return;
+        // Spawn the Product Intel Entry node (Question 0)
+        const intelNodeId = 'stage-product_intel';
+        if (nodes.some((n) => n.id === intelNodeId)) return;
 
-        const newNode: Node = {
-            id: newNodeId,
-            type: 'classificationNode',
+        const intelNode: Node = {
+            id: intelNodeId,
+            type: 'productIntelEntry',
             position: { x: 0, y: 0 },
-            data: { config: rootConfig, label: rootConfig.title },
+            data: {
+                parentNodeId: parentId,
+                nextRootConfig: rootConfig,
+            },
         };
 
-        const newEdge: Edge = {
-            id: `e-${parentId}-${newNodeId}`,
+        const intelEdge: Edge = {
+            id: `e-${parentId}-${intelNodeId}`,
             source: parentId,
             sourceHandle: 'right',
-            target: newNodeId,
+            target: intelNodeId,
             targetHandle: 'left',
             type: 'animatedEdge',
             data: { color: 'navy' },
@@ -190,8 +194,8 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
             return edge;
         });
 
-        const allNodes = [...updatedNodes, newNode];
-        const allEdges = [...updatedEdges, newEdge];
+        const allNodes = [...updatedNodes, intelNode];
+        const allEdges = [...updatedEdges, intelEdge];
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(allNodes, allEdges);
 
         set({
@@ -199,7 +203,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
             edges: layoutedEdges,
             selectedJourney: journeyType,
             isExpanded: true,
-            lastAddedNodeId: newNodeId,
+            lastAddedNodeId: intelNodeId,
         });
     },
 

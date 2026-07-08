@@ -1595,87 +1595,206 @@ export function generateHTMLTemplate(payload: any): string {
     ` : ''}
 
     <!-- ═══════════════════════════════════════════════
-         FOUNDER + INVESTOR: Market Intelligence
+         FOUNDER + INVESTOR: TAM/SAM Market Sizing
          ═══════════════════════════════════════════════ -->
     ${!isBasic ? `
-    ${pageStart('Market Intelligence')}
-        <h2 class="section-title">Market Intelligence</h2>
-        <p class="section-subtitle">Competitive landscape analysis and market positioning</p>
+    ${pageStart('Market Sizing')}
+        <h2 class="section-title">Market Sizing — TAM / SAM${isInvestor ? ' / SOM' : ''}</h2>
+        <p class="section-subtitle">Total addressable market analysis and sizing estimates</p>
 
         <div class="flowing-two-col">
-                    <h4 class="subsection-title" style="font-size: 14px; margin-top: 0;">Market Analysis</h4>
-                    <p class="paragraph" style="font-size: 13px;">${esc(txt(d.market_analysis?.market_narrative || d.marketAnalysis))}</p>
-                    ${d.market_analysis?.willingness_to_pay_analysis ? `
-                    <h4 class="subsection-title" style="font-size: 14px;">Willingness to Pay</h4>
-                    <p class="paragraph" style="font-size: 13px;">${esc(d.market_analysis.willingness_to_pay_analysis)}</p>` : ''}
-                    <h4 class="subsection-title" style="font-size: 14px;">Competitive Landscape</h4>
-                    <p class="paragraph" style="font-size: 13px;">${esc(txt(d.market_analysis?.competitive_landscape || d.competitive_positioning?.narrative || d.competitivePositioning))}</p>
-                    ${trackSource('PricePoint Market Intelligence Module')}
-                    ${trackSource('AI-generated competitive analysis')}
+            <h4 class="subsection-title" style="font-size: 14px; margin-top: 0;">Market Analysis</h4>
+            <p class="paragraph" style="font-size: 13px;">${esc(txt(d.market_analysis?.market_narrative || d.marketAnalysis))}</p>
+            ${d.market_analysis?.willingness_to_pay_analysis ? `
+            <h4 class="subsection-title" style="font-size: 14px;">Willingness to Pay</h4>
+            <p class="paragraph" style="font-size: 13px;">${esc(d.market_analysis.willingness_to_pay_analysis)}</p>` : ''}
         </div>
 
-                ${isInvestor && d.market_analysis?.tam_analysis ? `
-                <div class="callout teal" style="margin-top: 14px;">
-                    <div class="callout-label">TAM/SAM/SOM Analysis</div>
-                    <p style="margin: 6px 0 0 0; font-size: 13px;">${esc(d.market_analysis.tam_analysis)}</p>
-                </div>` : ''}
-
-        ${d.competitive_positioning?.benchmark_table && arr(d.competitive_positioning.benchmark_table).length > 0 ? `
-        <div style="margin-top: 20px;">
-            <div class="exhibit-box">
-                <div class="exhibit-header">${nextExhibit('Competitive Benchmark')}</div>
-
-                <!-- Horizontal Bar Comparison -->
-                ${(() => {
-                    const benchmarks = arr(d.competitive_positioning.benchmark_table);
-                    const barItems = benchmarks.map((row: any) => ({
-                        label: row.competitor || 'Unknown',
-                        value: parseFloat(String(row.estimated_price || '0').replace(/[^0-9.]/g, '')) || 0,
-                        color: V.gray,
-                    }));
-                    // Add "Your Product" bar
-                    barItems.push({ label: 'Your Product', value: recommended, color: V.teal });
-                    return barItems.some((b: any) => b.value > 0) ?
-                        `<div class="chart-container">${generateHorizontalBarSVG(barItems)}</div>` : '';
-                })()}
-
-                <table class="voya-table">
-                    <thead><tr>
-                        <th>Competitor</th><th>Est. Price</th><th>Positioning</th><th>Your Advantage</th>
-                    </tr></thead>
-                    <tbody>
-                        ${arr(d.competitive_positioning.benchmark_table).map((row: any) => `
-                        <tr>
-                            <td>${esc(row.competitor || '')}</td>
-                            <td>${esc(row.estimated_price || '')}</td>
-                            <td style="font-weight:400;">${esc(row.positioning || '')}</td>
-                            <td style="font-weight:400;">${esc(row.your_advantage || '')}</td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>
-                <p class="source-note">Competitive intelligence based on user-provided data and AI analysis</p>
-                ${trackSource('Competitive intelligence based on user-provided data and AI analysis')}
-            </div>
+        ${d.market_analysis?.tam_analysis || d.market_analysis?.tam_sam_narrative ? `
+        <div class="callout teal" style="margin-top: 14px;">
+            <div class="callout-label">TAM/SAM${isInvestor ? '/SOM' : ''} Analysis</div>
+            <p style="margin: 6px 0 0 0; font-size: 13px;">${esc(txt(d.market_analysis.tam_sam_narrative || d.market_analysis.tam_analysis))}</p>
         </div>` : ''}
+
+        ${trackSource('PricePoint Market Intelligence Module')}
     ${pageEnd}
     ` : ''}
 
     <!-- ═══════════════════════════════════════════════
-         FOUNDER + INVESTOR: Unit Economics + Pricing Strategy
+         INVESTOR ONLY: Market Timing Assessment
          ═══════════════════════════════════════════════ -->
-    ${!isBasic ? `
-    ${pageStart('Economics &amp; Strategy')}
-        <h2 class="section-title">Economics &amp; Strategy</h2>
-        <p class="section-subtitle">Unit economics health check and strategic pricing recommendations</p>
+    ${isInvestor && d.market_analysis?.market_timing_assessment ? `
+    ${pageStart('Market Timing')}
+        <h2 class="section-title">Market Timing Assessment</h2>
+        <p class="section-subtitle">Macro-economic and competitive timing analysis for market entry</p>
 
-        ${d.unit_economics ? `
+        <div class="exhibit-box">
+            <p class="paragraph">${esc(d.market_analysis.market_timing_assessment)}</p>
+            <p class="source-note">AI-generated market timing analysis</p>
+            ${trackSource('AI-generated market timing analysis')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: Competitive Benchmark Table
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && d.competitive_positioning?.benchmark_table && arr(d.competitive_positioning.benchmark_table).length > 0 ? `
+    ${pageStart('Competitive Benchmark')}
+        <h2 class="section-title">Competitive Benchmark</h2>
+        <p class="section-subtitle">How your pricing compares to key competitors in the market</p>
+
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Competitive Benchmark')}</div>
+
+            <!-- Horizontal Bar Comparison -->
+            ${(() => {
+                const benchmarks = arr(d.competitive_positioning.benchmark_table);
+                const barItems = benchmarks.map((row: any) => ({
+                    label: row.competitor || 'Unknown',
+                    value: parseFloat(String(row.estimated_price || '0').replace(/[^0-9.]/g, '')) || 0,
+                    color: V.gray,
+                }));
+                barItems.push({ label: 'Your Product', value: recommended, color: V.teal });
+                return barItems.some((b: any) => b.value > 0) ?
+                    `<div class="chart-container">${generateHorizontalBarSVG(barItems)}</div>` : '';
+            })()}
+
+            <table class="voya-table">
+                <thead><tr>
+                    <th>Competitor</th><th>Est. Price</th><th>Positioning</th><th>Your Advantage</th>
+                </tr></thead>
+                <tbody>
+                    ${arr(d.competitive_positioning.benchmark_table).map((row: any) => `
+                    <tr>
+                        <td>${esc(row.competitor || '')}</td>
+                        <td>${esc(row.estimated_price || '')}</td>
+                        <td style="font-weight:400;">${esc(row.positioning || '')}</td>
+                        <td style="font-weight:400;">${esc(row.your_advantage || '')}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            <p class="source-note">Competitive intelligence based on user-provided data and AI analysis</p>
+            ${trackSource('Competitive intelligence based on user-provided data and AI analysis')}
+        </div>
+
+        ${!isBasic ? `
+        <div class="flowing-two-col" style="margin-top: 16px;">
+            <h4 class="subsection-title" style="font-size: 14px; margin-top: 0;">Competitive Landscape</h4>
+            <p class="paragraph" style="font-size: 13px;">${esc(txt(d.market_analysis?.competitive_landscape || d.competitive_positioning?.narrative || d.competitivePositioning))}</p>
+        </div>` : ''}
+        ${trackSource('AI-generated competitive analysis')}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: Positioning Map
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && arr(d.market_analysis?.positioning_map).length > 0 ? `
+    ${pageStart('Positioning Map')}
+        <h2 class="section-title">Positioning Map</h2>
+        <p class="section-subtitle">Price vs. value positioning relative to competitors</p>
+
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Competitive Positioning Map')}</div>
+            <div class="chart-container">
+                ${generatePositioningMapSVG(
+                    [...arr(d.market_analysis.positioning_map).map((p: any) => ({
+                        name: p.name || p.competitor || '',
+                        price: num(p.price),
+                        value_score: num(p.value_score),
+                    })), {
+                        name: 'Your Product',
+                        price: recommended,
+                        value_score: num(d.market_analysis.positioning_map?.[0]?.value_score || 7) * 1.15,
+                    }],
+                    cs
+                )}
+            </div>
+            <p class="footnote">Larger dot = your product. Positioned by price (X) and perceived value score (Y).</p>
+            <p class="source-note">PricePoint Positioning Analysis</p>
+            ${trackSource('PricePoint Positioning Analysis')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Feature-to-Price Mapping
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && arr(d.market_analysis?.feature_price_mapping).length > 0 ? `
+    ${pageStart('Feature-Price Mapping')}
+        <h2 class="section-title">Feature-to-Price Mapping</h2>
+        <p class="section-subtitle">How specific features drive pricing power across tiers</p>
+
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Feature-Price Mapping')}</div>
+            <table class="voya-table">
+                <thead><tr>
+                    <th>Feature</th><th>Price Impact</th><th>Customer Value</th><th>Tier Recommendation</th>
+                </tr></thead>
+                <tbody>
+                    ${arr(d.market_analysis.feature_price_mapping).map((f: any) => `
+                    <tr>
+                        <td>${esc(f.feature || '')}</td>
+                        <td style="font-weight:400;">${esc(f.price_impact || '')}</td>
+                        <td style="font-weight:400;">${esc(f.customer_value || '')}</td>
+                        <td style="font-weight:400;">${esc(f.tier_recommendation || '')}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            <p class="source-note">AI-generated feature-price analysis</p>
+            ${trackSource('AI-generated feature-price analysis')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Competitive Moat Assessment
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && d.competitive_positioning?.competitive_moat_assessment ? `
+    ${pageStart('Competitive Moat')}
+        <h2 class="section-title">Competitive Moat Assessment</h2>
+        <p class="section-subtitle">Defensibility analysis of your competitive positioning</p>
+
+        <div class="exhibit-box">
+            <p class="paragraph">${esc(typeof d.competitive_positioning.competitive_moat_assessment === 'string'
+                ? d.competitive_positioning.competitive_moat_assessment
+                : txt(d.competitive_positioning.competitive_moat_assessment?.narrative || d.competitive_positioning.competitive_moat_assessment?.assessment || ''))}</p>
+
+            ${typeof d.competitive_positioning.competitive_moat_assessment === 'object' && arr(d.competitive_positioning.competitive_moat_assessment?.moat_factors).length > 0 ? `
+            <table class="voya-table" style="margin-top: 14px;">
+                <thead><tr>
+                    <th>Moat Factor</th><th>Strength</th><th>Description</th>
+                </tr></thead>
+                <tbody>
+                    ${arr(d.competitive_positioning.competitive_moat_assessment.moat_factors).map((m: any) => `
+                    <tr>
+                        <td>${esc(m.factor || '')}</td>
+                        <td><span class="badge badge-${(m.strength || '').toLowerCase() === 'strong' ? 'green' : (m.strength || '').toLowerCase() === 'weak' ? 'red' : 'orange'}">${esc(m.strength || '')}</span></td>
+                        <td style="font-weight:400;">${esc(m.description || '')}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>` : ''}
+            <p class="source-note">PricePoint Competitive Moat Analysis</p>
+            ${trackSource('PricePoint Competitive Moat Analysis')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: LTV / CAC / Payback Analysis
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && d.unit_economics ? `
+    ${pageStart('Unit Economics')}
+        <h2 class="section-title">LTV · CAC · Payback${isInvestor ? ' · Rule of 40' : ''} Analysis</h2>
+        <p class="section-subtitle">Unit economics health check and customer lifetime value analysis</p>
+
         <div class="voya-two-col">
             <div>
                 <div class="exhibit-box">
                     <div class="exhibit-header">${nextExhibit('Unit Economics')}</div>
                     <p class="paragraph" style="font-size: 13px;">${esc(txt(d.unit_economics.narrative))}</p>
 
-                    <!-- Gauge for health score -->
                     ${d.unit_economics.health_score ? `
                     <div style="text-align:center;margin:12px 0;">
                         ${generateGaugeSVG(
@@ -1696,8 +1815,6 @@ export function generateHTMLTemplate(payload: any): string {
             <div>
                 <div class="exhibit-box">
                     <div class="exhibit-header">${nextExhibit('Key Metrics')}</div>
-
-                    <!-- KPI Cards -->
                     <div class="kpi-row" style="flex-wrap:wrap;">
                         <div class="kpi-item">
                             <div class="kpi-value">${cs}${fmtK(d.unit_economics.estimated_ltv)}</div>
@@ -1724,7 +1841,6 @@ export function generateHTMLTemplate(payload: any): string {
                         </div>`}
                     </div>
 
-                    <!-- Cost Structure Donut -->
                     ${totalUnitCost > 0 ? `
                     <div style="margin-top: 16px;">
                         ${generateDonutChartSVG([
@@ -1736,7 +1852,7 @@ export function generateHTMLTemplate(payload: any): string {
                     ${trackSource('Derived from pricing engine calculations')}
                 </div>
             </div>
-        </div>` : ''}
+        </div>
 
         ${isInvestor && d.unit_economics?.investor_lens_commentary ? `
         <div class="pull-quote">
@@ -1744,80 +1860,85 @@ export function generateHTMLTemplate(payload: any): string {
             <span class="attribution">Investor Lens Analysis</span>
         </div>` : ''}
 
-        ${d.pricing_strategy ? `
-        <hr class="voya-divider">
-        <h2 class="section-title">Pricing Strategy</h2>
-        <p class="paragraph">${esc(txt(d.pricing_strategy.strategy_narrative))}</p>
-        ${arr(d.pricing_strategy.pricing_tiers_suggestion).length > 0 ? `
-        <div class="exhibit-box">
-            <div class="exhibit-header">${nextExhibit('Recommended Pricing Tiers')}</div>
-
-            <!-- Horizontal bar for tier prices -->
-            <div class="chart-container">
-                ${generateHorizontalBarSVG(
-                    arr(d.pricing_strategy.pricing_tiers_suggestion).map((t: any, i: number) => ({
-                        label: t.tier_name || `Tier ${i + 1}`,
-                        value: num(t.price),
-                        color: i === 0 ? V.teal : i === 1 ? V.orange : V.gray,
-                    }))
-                )}
+        ${isInvestor && d.unit_economics?.rule_of_40 ? `
+        <div class="exhibit-box" style="margin-top: 18px;">
+            <div class="exhibit-header">${nextExhibit('Rule of 40 Assessment')}</div>
+            <div style="display:flex;gap:28px;align-items:center;">
+                <div style="text-align:center;">
+                    ${generateRuleOf40GaugeSVG(num(d.unit_economics.rule_of_40.score || d.unit_economics.rule_of_40.combined_score))}
+                </div>
+                <div style="flex:1;">
+                    <div class="kpi-row" style="flex-wrap:wrap;margin-bottom:12px;">
+                        <div class="kpi-item">
+                            <div class="kpi-value">${num(d.unit_economics.rule_of_40.revenue_growth_pct).toFixed(0)}%</div>
+                            <div class="kpi-label">Revenue Growth</div>
+                        </div>
+                        <div class="kpi-item">
+                            <div class="kpi-value">${num(d.unit_economics.rule_of_40.profit_margin_pct).toFixed(0)}%</div>
+                            <div class="kpi-label">Profit Margin</div>
+                        </div>
+                    </div>
+                    <p class="paragraph" style="font-size: 13px;">${esc(txt(d.unit_economics.rule_of_40.interpretation, 'The Rule of 40 states that a SaaS company\'s growth rate plus profit margin should exceed 40%.'))}</p>
+                </div>
             </div>
-
-            <table class="voya-table">
-                <thead><tr>
-                    <th>Tier</th><th>Price</th><th>Segment</th><th>Value Prop</th>
-                </tr></thead>
-                <tbody>
-                    ${arr(d.pricing_strategy.pricing_tiers_suggestion).map((t: any) => `
-                    <tr>
-                        <td>${esc(t.tier_name || '')}</td>
-                        <td class="text-teal">${cs}${num(t.price).toFixed(0)}</td>
-                        <td style="font-weight:400;">${esc(t.target_segment || '')}</td>
-                        <td style="font-weight:400;">${esc(t.key_value_prop || '')}</td>
-                    </tr>`).join('')}
-                </tbody>
-            </table>
-            <p class="source-note">PricePoint Strategy Module — AI-generated tier recommendations</p>
-            ${trackSource('PricePoint Strategy Module — AI-generated tier recommendations')}
+            <p class="source-note">PricePoint Rule of 40 Assessment</p>
+            ${trackSource('PricePoint Rule of 40 Assessment')}
         </div>` : ''}
-        ` : ''}
+    ${pageEnd}
+    ` : ''}
 
-        <!-- Breakeven Analysis Table -->
-        ${totalUnitCost > 0 ? `
-        <div class="exhibit-box" style="margin-top: 18px;">
-            <div class="exhibit-header">${nextExhibit('Breakeven Analysis')}</div>
-            <p class="paragraph" style="font-size: 13px;">Number of customers needed at each price point to cover monthly fixed costs, based on unit economics.</p>
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: Revenue Scenario Table
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic ? `
+    ${pageStart('Revenue Scenarios')}
+        <h2 class="section-title">Revenue Scenario Projection</h2>
+        <p class="section-subtitle">Projected revenue across three volume scenarios</p>
+
+        ${arr(d.financial_scenarios?.scenarios).length > 0 ? `
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Revenue Scenario Projection')}</div>
+            <p class="paragraph" style="font-size: 13px;">${esc(txt(d.financial_scenarios?.narrative, 'Projected monthly and annual revenue at the optimal price point across three volume scenarios.'))}</p>
             <table class="voya-table">
                 <thead><tr>
-                    <th>Price Point</th><th>Price</th><th>Margin per Unit</th><th>Customers to Breakeven</th>
+                    <th>Metric</th>
+                    ${arr(d.financial_scenarios.scenarios).map((sc: any) => `<th>${esc(sc.name || '')}</th>`).join('')}
                 </tr></thead>
                 <tbody>
                     <tr>
-                        <td>Entry (Floor)</td>
-                        <td class="text-teal">${cs}${fmt(budget)}</td>
-                        <td style="font-weight:400;">${cs}${fmt(Math.max(budget - totalUnitCost, 0))}</td>
-                        <td style="font-weight:400;">${budget > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (budget - totalUnitCost)) : '\u221E'}</td>
+                        <td>Price</td>
+                        ${arr(d.financial_scenarios.scenarios).map((sc: any) => `<td class="text-teal">${cs}${num(sc.price_point).toFixed(0)}</td>`).join('')}
                     </tr>
                     <tr>
-                        <td><strong>Optimal (Recommended)</strong></td>
-                        <td class="text-teal"><strong>${cs}${fmt(recommended)}</strong></td>
-                        <td style="font-weight:400;">${cs}${fmt(Math.max(recommended - totalUnitCost, 0))}</td>
-                        <td style="font-weight:600;">${recommended > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (recommended - totalUnitCost)) : '\u221E'}</td>
+                        <td>Monthly Customers</td>
+                        ${arr(d.financial_scenarios.scenarios).map((sc: any) => `<td style="font-weight:400;">${fmtK(sc.monthly_customers || 0)}</td>`).join('')}
                     </tr>
                     <tr>
-                        <td>Premium (Anchor)</td>
-                        <td class="text-teal">${cs}${fmt(premium)}</td>
-                        <td style="font-weight:400;">${cs}${fmt(Math.max(premium - totalUnitCost, 0))}</td>
-                        <td style="font-weight:400;">${premium > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (premium - totalUnitCost)) : '\u221E'}</td>
+                        <td>MRR</td>
+                        ${arr(d.financial_scenarios.scenarios).map((sc: any) => `<td style="font-weight:400;">${cs}${fmtK(sc.mrr_month_6 || num(sc.price_point) * num(sc.monthly_customers))}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td>ARR (Year 1)</td>
+                        ${arr(d.financial_scenarios.scenarios).map((sc: any, i: number) => `<td ${i === 1 ? 'class="text-teal" style="font-weight:700;"' : 'style="font-weight:400;"'}>${cs}${fmtK(sc.arr_year_1)}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td>Gross Profit</td>
+                        ${arr(d.financial_scenarios.scenarios).map((sc: any) => `<td style="font-weight:400;">${cs}${fmtK(sc.gross_profit || 0)}</td>`).join('')}
+                    </tr>
+                    ${isInvestor ? `<tr>
+                        <td>Implied CAC Budget</td>
+                        ${arr(d.financial_scenarios.scenarios).map((sc: any) => `<td style="font-weight:400;">${cs}${fmtK(sc.implied_cac_budget || 0)}</td>`).join('')}
+                    </tr>` : ''}
+                    <tr>
+                        <td>Key Assumption</td>
+                        ${arr(d.financial_scenarios.scenarios).map((sc: any) => `<td style="font-weight:400;font-size:12px;">${esc(sc.key_assumption || '')}</td>`).join('')}
                     </tr>
                 </tbody>
             </table>
-            <p class="footnote">Based on total unit cost of ${cs}${fmt(totalUnitCost)}. Breakeven assumes 10x monthly cost coverage.</p>
-            ${trackSource('PricePoint Breakeven Analysis')}
-        </div>` : ''}
-
-        <!-- Revenue Scenario Projection Table -->
-        <div class="exhibit-box" style="margin-top: 18px;">
+            ${trackSource('PricePoint Revenue Scenario Projection')}
+        </div>
+        ` : `
+        <div class="exhibit-box">
             <div class="exhibit-header">${nextExhibit('Revenue Scenario Projection')}</div>
             <p class="paragraph" style="font-size: 13px;">Projected monthly and annual revenue at the optimal price point across three volume scenarios.</p>
             <table class="voya-table">
@@ -1852,69 +1973,337 @@ export function generateHTMLTemplate(payload: any): string {
             <p class="footnote">Projections based on optimal price of ${cs}${fmt(recommended)} and unit cost of ${cs}${fmt(totalUnitCost)}.</p>
             ${trackSource('PricePoint Revenue Scenario Projection')}
         </div>
+        `}
     ${pageEnd}
     ` : ''}
 
     <!-- ═══════════════════════════════════════════════
-         FOUNDER + INVESTOR: Risk Matrix + Roadmap
+         FOUNDER + INVESTOR: Cost of Inaction
          ═══════════════════════════════════════════════ -->
-    ${!isBasic ? `
-    ${pageStart('Risk &amp; Implementation')}
-        <h2 class="section-title">Risk &amp; Implementation</h2>
-        <p class="section-subtitle">Risk assessment matrix and phased implementation roadmap</p>
+    ${!isBasic && (d.cost_of_inaction || (typeof d.cost_of_inaction === 'object' && d.cost_of_inaction)) ? `
+    ${pageStart('Cost of Inaction')}
+        <h2 class="section-title">Cost of Inaction</h2>
+        <p class="section-subtitle">The financial impact of maintaining current pricing or delaying action</p>
 
-        ${arr(d.risk_matrix).length > 0 ? `
-        <div class="exhibit-box">
-            <div class="exhibit-header">${nextExhibit('Risk Matrix')}</div>
+        <div class="inaction-callout">
+            <div class="ic-label">Cost of Inaction</div>
+            ${typeof d.cost_of_inaction === 'object' ? `
+            <div class="ic-number">${esc(txt(d.cost_of_inaction.headline_number, ''))}</div>
+            ${d.cost_of_inaction.calculation ? `<p style="font-size: 13px; color: var(--voya-gray); margin: 4px 0 10px 0;">${esc(d.cost_of_inaction.calculation)}</p>` : ''}
+            <div class="ic-calc">${esc(txt(d.cost_of_inaction.narrative, ''))}</div>
+            ` : `
+            <div class="ic-calc">${esc(String(d.cost_of_inaction))}</div>
+            `}
+        </div>
+        ${trackSource('PricePoint Cost of Inaction Analysis')}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: Price Recommendation + Rationale
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && d.pricing_strategy ? `
+    ${pageStart('Price Recommendation')}
+        <h2 class="section-title">Price Recommendation &amp; Rationale</h2>
+        <p class="section-subtitle">Strategic pricing recommendation based on comprehensive analysis</p>
+
+        <p class="paragraph">${esc(txt(d.pricing_strategy.strategy_narrative))}</p>
+
+        <div class="exhibit-box" style="margin-top: 18px;">
+            <div class="exhibit-header">${nextExhibit('Recommended Price Point')}</div>
+            <div class="kpi-row" style="justify-content:center;gap:32px;">
+                <div class="kpi-item">
+                    <div class="kpi-value" style="color:${V.gray};">${cs}${fmt(budget)}</div>
+                    <div class="kpi-label">Floor (Entry)</div>
+                </div>
+                <div class="kpi-item" style="border:2px solid ${V.teal};border-radius:10px;padding:12px 20px;">
+                    <div class="kpi-value" style="font-size:28px;">${cs}${fmt(recommended)}</div>
+                    <div class="kpi-label">Recommended</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-value" style="color:${V.gray};">${cs}${fmt(premium)}</div>
+                    <div class="kpi-label">Premium (Anchor)</div>
+                </div>
+            </div>
+            ${trackSource('PricePoint Pricing Engine Recommendation')}
+        </div>
+
+        <!-- Breakeven Analysis Table -->
+        ${totalUnitCost > 0 ? `
+        <div class="exhibit-box" style="margin-top: 18px;">
+            <div class="exhibit-header">${nextExhibit('Breakeven Analysis')}</div>
+            <p class="paragraph" style="font-size: 13px;">Number of customers needed at each price point to cover monthly fixed costs.</p>
             <table class="voya-table">
                 <thead><tr>
-                    <th style="width:28%">Risk</th><th style="width:14%">Category</th><th style="width:12%">Severity</th><th style="width:46%">Mitigation</th>
+                    <th>Price Point</th><th>Price</th><th>Gross Margin %</th><th>Customers to Breakeven</th><th>Months to Recover Dev</th>
                 </tr></thead>
                 <tbody>
-                    ${arr(d.risk_matrix).map((r: any) => `
                     <tr>
-                        <td>${esc(r.risk || '')}</td>
-                        <td style="font-weight:400;">${esc(r.category || '')}</td>
-                        <td><span class="badge badge-${(r.severity || '').toLowerCase() === 'high' ? 'red' : (r.severity || '').toLowerCase() === 'medium' ? 'orange' : 'green'}">${esc(r.severity || '')}</span></td>
-                        <td style="font-weight:400;">${esc(r.mitigation || '')}</td>
+                        <td>Entry (Floor)</td>
+                        <td class="text-teal">${cs}${fmt(budget)}</td>
+                        <td style="font-weight:400;">${budget > 0 ? ((Math.max(budget - totalUnitCost, 0) / budget) * 100).toFixed(1) : '0.0'}%</td>
+                        <td style="font-weight:400;">${budget > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (budget - totalUnitCost)) : '\u221E'}</td>
+                        <td style="font-weight:400;">${budget > totalUnitCost ? Math.ceil(totalUnitCost * 120 / ((budget - totalUnitCost) * 10)) : '\u221E'}mo</td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td><strong>Optimal (Recommended)</strong></td>
+                        <td class="text-teal"><strong>${cs}${fmt(recommended)}</strong></td>
+                        <td style="font-weight:600;">${recommended > 0 ? ((Math.max(recommended - totalUnitCost, 0) / recommended) * 100).toFixed(1) : '0.0'}%</td>
+                        <td style="font-weight:600;">${recommended > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (recommended - totalUnitCost)) : '\u221E'}</td>
+                        <td style="font-weight:600;">${recommended > totalUnitCost ? Math.ceil(totalUnitCost * 120 / ((recommended - totalUnitCost) * 10)) : '\u221E'}mo</td>
+                    </tr>
+                    <tr>
+                        <td>Premium (Anchor)</td>
+                        <td class="text-teal">${cs}${fmt(premium)}</td>
+                        <td style="font-weight:400;">${premium > 0 ? ((Math.max(premium - totalUnitCost, 0) / premium) * 100).toFixed(1) : '0.0'}%</td>
+                        <td style="font-weight:400;">${premium > totalUnitCost ? Math.ceil(totalUnitCost * 10 / (premium - totalUnitCost)) : '\u221E'}</td>
+                        <td style="font-weight:400;">${premium > totalUnitCost ? Math.ceil(totalUnitCost * 120 / ((premium - totalUnitCost) * 10)) : '\u221E'}mo</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="footnote">Based on total unit cost of ${cs}${fmt(totalUnitCost)}. Breakeven assumes 10x monthly cost coverage.</p>
+            ${trackSource('PricePoint Breakeven Analysis')}
+        </div>` : ''}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: Pricing Tier Architecture
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && arr(d.pricing_strategy?.pricing_tiers_suggestion).length > 0 ? `
+    ${pageStart('Pricing Tiers')}
+        <h2 class="section-title">Pricing Tier Architecture</h2>
+        <p class="section-subtitle">Recommended multi-tier pricing structure</p>
+
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Recommended Pricing Tiers')}</div>
+
+            <div class="chart-container">
+                ${generateHorizontalBarSVG(
+                    arr(d.pricing_strategy.pricing_tiers_suggestion).map((t: any, i: number) => ({
+                        label: t.tier_name || `Tier ${i + 1}`,
+                        value: num(t.price),
+                        color: i === 0 ? V.teal : i === 1 ? V.orange : V.gray,
+                    }))
+                )}
+            </div>
+
+            <table class="voya-table">
+                <thead><tr>
+                    <th>Tier</th><th>Price</th><th>Target Segment</th><th>Key Value Prop</th>
+                </tr></thead>
+                <tbody>
+                    ${arr(d.pricing_strategy.pricing_tiers_suggestion).map((t: any) => `
+                    <tr>
+                        <td>${esc(t.tier_name || '')}</td>
+                        <td class="text-teal">${cs}${num(t.price).toFixed(0)}</td>
+                        <td style="font-weight:400;">${esc(t.target_segment || '')}</td>
+                        <td style="font-weight:400;">${esc(t.key_value_prop || '')}</td>
                     </tr>`).join('')}
                 </tbody>
             </table>
-            <p class="source-note">PricePoint Risk Assessment Module</p>
-            ${trackSource('PricePoint Risk Assessment Module')}
+            <p class="source-note">PricePoint Strategy Module — AI-generated tier recommendations</p>
+            ${trackSource('PricePoint Strategy Module — AI-generated tier recommendations')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: Launch vs Scale Pricing
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && d.pricing_strategy?.launch_vs_scale ? `
+    ${pageStart('Launch vs. Scale')}
+        <h2 class="section-title">Launch vs. Scale Pricing</h2>
+        <p class="section-subtitle">How your pricing should evolve from launch through growth</p>
+
+        <div class="voya-two-col">
+            <div class="exhibit-box">
+                <div class="exhibit-header">${nextExhibit('Launch Phase')}</div>
+                <div class="kpi-row" style="justify-content:center;">
+                    <div class="kpi-item">
+                        <div class="kpi-value">${cs}${num(d.pricing_strategy.launch_vs_scale.launch_price).toFixed(0)}</div>
+                        <div class="kpi-label">Launch Price</div>
+                    </div>
+                </div>
+                <p class="paragraph" style="font-size: 13px; margin-top: 10px;">${esc(txt(d.pricing_strategy.launch_vs_scale.launch_rationale, ''))}</p>
+            </div>
+            <div class="exhibit-box">
+                <div class="exhibit-header">${nextExhibit('Scale Phase')}</div>
+                <div class="kpi-row" style="justify-content:center;">
+                    <div class="kpi-item">
+                        <div class="kpi-value">${cs}${num(d.pricing_strategy.launch_vs_scale.scale_price).toFixed(0)}</div>
+                        <div class="kpi-label">Scale Price</div>
+                    </div>
+                </div>
+                <p class="paragraph" style="font-size: 13px; margin-top: 10px;">${esc(txt(d.pricing_strategy.launch_vs_scale.scale_rationale, ''))}</p>
+            </div>
+        </div>
+
+        ${d.pricing_strategy.launch_vs_scale.transition_trigger ? `
+        <div class="callout teal" style="margin-top: 14px;">
+            <div class="callout-label">Transition Trigger</div>
+            <p style="margin: 6px 0 0 0; font-size: 13px;">${esc(d.pricing_strategy.launch_vs_scale.transition_trigger)}</p>
+        </div>` : ''}
+        ${trackSource('PricePoint Launch vs. Scale Analysis')}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: 12-Month Revenue Projection Chart
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && d.chart_data?.revenue_projection_12m ? `
+    ${pageStart('Revenue Projection')}
+        <h2 class="section-title">12-Month Revenue Projection</h2>
+        <p class="section-subtitle">Forward revenue projection across three growth scenarios</p>
+
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('12-Month Revenue Projection')}</div>
+            <div class="chart-container">${generateRevenueChartSVG(
+                arr(d.chart_data.revenue_projection_12m.labels),
+                arr(d.chart_data.revenue_projection_12m.conservative),
+                arr(d.chart_data.revenue_projection_12m.base_case),
+                arr(d.chart_data.revenue_projection_12m.optimistic)
+            )}</div>
+            <p class="source-note">${esc(txt(d.chart_data.revenue_projection_12m.description, '12-month forward revenue projection across three scenarios'))}</p>
+            ${trackSource(txt(d.chart_data.revenue_projection_12m.description, '12-month forward revenue projection across three scenarios'))}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Margin Erosion + Leakage Audit
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && d.margin_erosion_audit ? `
+    ${pageStart('Margin Erosion')}
+        <h2 class="section-title">Margin Erosion &amp; Leakage Audit</h2>
+        <p class="section-subtitle">Identifying sources of margin leakage and revenue loss</p>
+
+        ${d.margin_erosion_audit.narrative ? `
+        <p class="paragraph">${esc(d.margin_erosion_audit.narrative)}</p>` : ''}
+
+        ${arr(d.margin_erosion_audit.leakage_sources).length > 0 ? `
+        <div class="exhibit-box" style="margin-top: 14px;">
+            <div class="exhibit-header">${nextExhibit('Margin Leakage Sources')}</div>
+            <div class="chart-container">
+                ${generateMarginErosionBarSVG(arr(d.margin_erosion_audit.leakage_sources))}
+            </div>
+            <table class="voya-table">
+                <thead><tr>
+                    <th>Leakage Source</th><th>Annual Impact</th><th>Severity</th>
+                </tr></thead>
+                <tbody>
+                    ${arr(d.margin_erosion_audit.leakage_sources).map((s: any) => `
+                    <tr>
+                        <td>${esc(s.source || '')}</td>
+                        <td style="color:${V.red};font-weight:600;">${esc(s.annual_impact || '')}</td>
+                        <td><span class="badge badge-${(s.severity || '').toLowerCase() === 'high' ? 'red' : (s.severity || '').toLowerCase() === 'medium' ? 'orange' : 'green'}">${esc(s.severity || '')}</span></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            <p class="source-note">PricePoint Margin Erosion Analysis</p>
+            ${trackSource('PricePoint Margin Erosion Analysis')}
         </div>` : ''}
 
-        ${d.implementation_roadmap ? `
-        <hr class="voya-divider">
-        <h2 class="section-title">Implementation Roadmap</h2>
-        ${txt(d.implementation_roadmap.narrative) ? `<p class="paragraph">${esc(d.implementation_roadmap.narrative)}</p>` : ''}
-        ${arr(d.implementation_roadmap.phases).map((phase: any, i: number) => `
-        <div class="phase-card ${i === 0 ? 'active' : ''}">
-            <div class="phase-number">${phase.phase || i + 1}</div>
-            <h4>${esc(phase.title || `Phase ${i + 1}`)}</h4>
-            <span class="phase-duration">${esc(phase.duration || '')}</span>
-            <ul>
-                ${arr(phase.key_actions).map((a: string) => `<li>${esc(a)}</li>`).join('')}
-            </ul>
-            <p class="success">&check; ${esc(phase.success_metric || phase.pricing_milestone || '')}</p>
-        </div>`).join('')}
-        ` : ''}
+        ${d.margin_erosion_audit.total_leakage ? `
+        <div class="callout red" style="margin-top: 14px;">
+            <div class="callout-label" style="color: ${V.red};">Total Estimated Leakage</div>
+            <p style="font-size: 18px; font-weight: 700; margin: 6px 0 0 0; color: ${V.red};">${esc(d.margin_erosion_audit.total_leakage)}</p>
+        </div>` : ''}
+    ${pageEnd}
+    ` : ''}
 
-        ${arr(d.next_steps).length > 0 ? `
-        <hr class="voya-divider">
-        <h2 class="section-title">Next Steps</h2>
-        ${arr(d.next_steps).map((step: string, i: number) => `
-        <div style="display:flex;gap:12px;margin-bottom:10px;align-items:flex-start;">
-            <div style="min-width:28px;height:28px;border-radius:50%;background:${V.teal};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${i + 1}</div>
-            <p class="paragraph" style="margin:4px 0 0 0;">${esc(step)}</p>
-        </div>`).join('')}
-        ` : ''}
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Packaging Recommendation
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && d.pricing_strategy?.packaging_recommendation_detail ? `
+    ${pageStart('Packaging Recommendation')}
+        <h2 class="section-title">Packaging Recommendation</h2>
+        <p class="section-subtitle">Detailed feature packaging and bundling strategy</p>
 
-        <!-- 90-Day Monitoring Plan -->
-        <hr class="voya-divider">
+        <div class="exhibit-box">
+            <p class="paragraph">${esc(typeof d.pricing_strategy.packaging_recommendation_detail === 'string'
+                ? d.pricing_strategy.packaging_recommendation_detail
+                : txt(d.pricing_strategy.packaging_recommendation_detail?.narrative || ''))}</p>
+
+            ${typeof d.pricing_strategy.packaging_recommendation_detail === 'object' && arr(d.pricing_strategy.packaging_recommendation_detail?.packages).length > 0 ? `
+            <table class="voya-table" style="margin-top: 14px;">
+                <thead><tr>
+                    <th>Package</th><th>Price</th><th>Features</th><th>Target Segment</th>
+                </tr></thead>
+                <tbody>
+                    ${arr(d.pricing_strategy.packaging_recommendation_detail.packages).map((pkg: any) => `
+                    <tr>
+                        <td>${esc(pkg.name || '')}</td>
+                        <td class="text-teal">${esc(pkg.price || '')}</td>
+                        <td style="font-weight:400;">${esc(arr(pkg.features).join(', '))}</td>
+                        <td style="font-weight:400;">${esc(pkg.target || '')}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>` : ''}
+            <p class="source-note">PricePoint Packaging Strategy</p>
+            ${trackSource('PricePoint Packaging Strategy')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Price Increase Strategy
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && d.pricing_strategy?.price_increase_strategy ? `
+    ${pageStart('Price Increase Strategy')}
+        <h2 class="section-title">Price Increase Strategy</h2>
+        <p class="section-subtitle">Phased approach to increasing prices over time</p>
+
+        ${d.pricing_strategy.price_increase_strategy.narrative ? `
+        <p class="paragraph">${esc(d.pricing_strategy.price_increase_strategy.narrative)}</p>` : ''}
+
+        ${arr(d.pricing_strategy.price_increase_strategy.timeline).length > 0 ? `
+        <div class="exhibit-box" style="margin-top: 14px;">
+            <div class="exhibit-header">${nextExhibit('Price Increase Timeline')}</div>
+            ${arr(d.pricing_strategy.price_increase_strategy.timeline).map((step: any, i: number) => `
+            <div class="timeline-item">
+                <div class="timeline-dot">${step.month || `M${(i + 1) * 3}`}</div>
+                <div class="timeline-body">
+                    <h4>${esc(step.action || step.title || `Phase ${i + 1}`)}</h4>
+                    <p>${esc(step.rationale || step.description || '')}</p>
+                    ${step.target_increase ? `<span class="badge badge-teal" style="margin-top:4px;">${esc(step.target_increase)}</span>` : ''}
+                </div>
+            </div>`).join('')}
+            <p class="source-note">PricePoint Price Escalation Strategy</p>
+            ${trackSource('PricePoint Price Escalation Strategy')}
+        </div>` : ''}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: 90-Day Monitoring Plan
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic ? `
+    ${pageStart('Monitoring Plan')}
         <h2 class="section-title">90-Day Monitoring Plan</h2>
         <p class="section-subtitle">Key metrics to track and action triggers for pricing adjustments</p>
 
+        ${arr(d.monitoring_plan).length > 0 ? `
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Pricing Monitoring Dashboard')}</div>
+            <table class="voya-table metric-trigger-table">
+                <thead><tr>
+                    <th style="width:20%">What to Measure</th><th style="width:15%">Target</th><th style="width:15%">Threshold Trigger</th><th style="width:50%">Specific Action</th>
+                </tr></thead>
+                <tbody>
+                    ${arr(d.monitoring_plan).map((m: any) => `
+                    <tr>
+                        <td>${esc(m.metric || m.what_to_measure || '')}</td>
+                        <td class="target">${esc(m.target || '')}</td>
+                        <td class="warning">${esc(m.threshold_trigger || m.warning || '')}</td>
+                        <td style="font-weight:400;">${esc(m.specific_action || m.action || '')}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            <p class="footnote">Review weekly for 90 days post-launch. Targets calibrated to ${cs}${fmt(recommended)} optimal price.</p>
+            ${trackSource('PricePoint 90-Day Monitoring Plan')}
+        </div>
+        ` : `
         <div class="exhibit-box">
             <div class="exhibit-header">${nextExhibit('Pricing Monitoring Dashboard')}</div>
             <table class="voya-table">
@@ -1945,56 +2334,171 @@ export function generateHTMLTemplate(payload: any): string {
             <p class="footnote">Review weekly for 90 days post-launch. Targets calibrated to ${cs}${fmt(recommended)} optimal price.</p>
             ${trackSource('PricePoint 90-Day Monitoring Plan')}
         </div>
+        `}
     ${pageEnd}
     ` : ''}
 
     <!-- ═══════════════════════════════════════════════
-         INVESTOR ONLY: Financial Scenarios + Charts
+         FOUNDER + INVESTOR: Risk Matrix
          ═══════════════════════════════════════════════ -->
-    ${isInvestor ? `
-    ${pageStart('Financial Scenarios')}
-        <h2 class="section-title">Financial Scenarios</h2>
-        <p class="section-subtitle">Conservative, base-case, and optimistic financial projections</p>
+    ${!isBasic && arr(d.risk_matrix).length > 0 ? `
+    ${pageStart('Risk Matrix')}
+        <h2 class="section-title">Risk Matrix</h2>
+        <p class="section-subtitle">Risk assessment matrix with severity ratings and mitigation strategies</p>
 
-        ${d.financial_scenarios ? `
-        <p class="paragraph">${esc(txt(d.financial_scenarios.narrative, ''))}</p>
-        ${arr(d.financial_scenarios.scenarios).length > 0 ? `
         <div class="exhibit-box">
-            <div class="exhibit-header">${nextExhibit('Scenario Comparison')}</div>
-
-            <!-- Scenario comparison horizontal bars -->
-            <div class="chart-container">
-                ${generateHorizontalBarSVG(
-                    arr(d.financial_scenarios.scenarios).map((sc: any, i: number) => ({
-                        label: sc.name || `Scenario ${i + 1}`,
-                        value: num(sc.arr_year_1),
-                        color: i === 0 ? V.gray : i === 1 ? V.teal : V.orange,
-                    })),
-                )}
-            </div>
-
+            <div class="exhibit-header">${nextExhibit('Risk Matrix')}</div>
             <table class="voya-table">
                 <thead><tr>
-                    <th>Scenario</th><th>Price</th><th>MRR (M6)</th><th>ARR (Y1)</th><th>Key Assumption</th>
+                    <th style="width:28%">Risk</th><th style="width:14%">Category</th><th style="width:12%">Severity</th><th style="width:46%">Mitigation</th>
                 </tr></thead>
                 <tbody>
-                    ${arr(d.financial_scenarios.scenarios).map((sc: any, i: number) => `
-                    <tr class="${i === 1 ? 'highlight-row' : ''}">
-                        <td>${esc(sc.name || '')}</td>
-                        <td class="text-teal">${cs}${num(sc.price_point).toFixed(0)}</td>
-                        <td style="font-weight:400;">${cs}${fmtK(sc.mrr_month_6)}</td>
-                        <td style="font-weight:400;">${cs}${fmtK(sc.arr_year_1)}</td>
-                        <td style="font-weight:400;">${esc(sc.key_assumption || '')}</td>
+                    ${arr(d.risk_matrix).map((r: any) => `
+                    <tr>
+                        <td>${esc(r.risk || '')}</td>
+                        <td style="font-weight:400;">${esc(r.category || '')}</td>
+                        <td><span class="badge badge-${(r.severity || '').toLowerCase() === 'high' ? 'red' : (r.severity || '').toLowerCase() === 'medium' ? 'orange' : 'green'}">${esc(r.severity || '')}</span></td>
+                        <td style="font-weight:400;">${esc(r.mitigation || '')}</td>
                     </tr>`).join('')}
                 </tbody>
             </table>
-            <p class="source-note">PricePoint Financial Modeling Module — projections based on user inputs</p>
-            ${trackSource('PricePoint Financial Modeling Module — projections based on user inputs')}
-        </div>` : ''}
-        ` : ''}
+            <p class="source-note">PricePoint Risk Assessment Module</p>
+            ${trackSource('PricePoint Risk Assessment Module')}
+        </div>
+    ${pageEnd}
+    ` : ''}
 
-        ${d.chart_data ? `
-        <hr class="voya-divider">
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: Implementation Roadmap
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && d.implementation_roadmap ? `
+    ${pageStart('Implementation Roadmap')}
+        <h2 class="section-title">${isInvestor ? '4-Phase' : '3-Phase'} Implementation Roadmap</h2>
+        <p class="section-subtitle">Phased approach to implementing your pricing strategy</p>
+
+        ${txt(d.implementation_roadmap.narrative) ? `<p class="paragraph">${esc(d.implementation_roadmap.narrative)}</p>` : ''}
+        ${arr(d.implementation_roadmap.phases).map((phase: any, i: number) => `
+        <div class="phase-card ${i === 0 ? 'active' : ''}">
+            <div class="phase-number">${phase.phase || i + 1}</div>
+            <h4>${esc(phase.title || `Phase ${i + 1}`)}</h4>
+            <span class="phase-duration">${esc(phase.duration || '')}</span>
+            <ul>
+                ${arr(phase.key_actions).map((a: string) => `<li>${esc(a)}</li>`).join('')}
+            </ul>
+            <p class="success">&check; ${esc(phase.success_metric || phase.pricing_milestone || '')}</p>
+        </div>`).join('')}
+        ${trackSource('PricePoint Implementation Roadmap')}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         FOUNDER + INVESTOR: Next Steps
+         ═══════════════════════════════════════════════ -->
+    ${!isBasic && arr(d.next_steps).length > 0 ? `
+    ${pageStart('Next Steps')}
+        <h2 class="section-title">Next Steps</h2>
+        <p class="section-subtitle">Prioritised actions to take now</p>
+
+        ${arr(d.next_steps).map((step: string, i: number) => `
+        <div style="display:flex;gap:12px;margin-bottom:14px;align-items:flex-start;">
+            <div style="min-width:32px;height:32px;border-radius:50%;background:${V.teal};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">${i + 1}</div>
+            <p class="paragraph" style="margin:4px 0 0 0;">${esc(step)}</p>
+        </div>`).join('')}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Pricing Defensibility Statement
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && d.investor_narrative?.defensibility_statement ? `
+    ${pageStart('Pricing Defensibility')}
+        <h2 class="section-title">Pricing Defensibility Statement</h2>
+        <p class="section-subtitle">Why this pricing strategy is sustainable and defensible</p>
+
+        <div class="callout teal">
+            <div class="callout-label">${svgIcon('shield', V.teal, 20)} &nbsp;Defensibility Statement</div>
+            <p style="margin: 6px 0 0 0; font-size: 14px; line-height: 1.7;">${esc(d.investor_narrative.defensibility_statement)}</p>
+        </div>
+
+        ${d.investor_narrative.pricing_thesis ? `
+        <div class="pull-quote" style="margin-top: 20px;">
+            ${esc(d.investor_narrative.pricing_thesis)}
+            <span class="attribution">Pricing Thesis</span>
+        </div>` : ''}
+        ${trackSource('PricePoint Defensibility Analysis')}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Comparable Company Pricing
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && (arr(d.investor_narrative?.comparable_companies).length > 0 || arr(d.investor_narrative?.comparable_company_pricing).length > 0) ? `
+    ${pageStart('Comparable Companies')}
+        <h2 class="section-title">Comparable Company Pricing</h2>
+        <p class="section-subtitle">Pricing strategies from comparable companies in your market</p>
+
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Comparable Company Analysis')}</div>
+            ${arr(d.investor_narrative.comparable_company_pricing || d.investor_narrative.comparable_companies).map((comp: any, i: number) => `
+            <div style="display:flex;gap:14px;align-items:flex-start;padding:14px 0;${i > 0 ? `border-top:1px solid ${V.border};` : ''}">
+                <div style="min-width:40px;height:40px;border-radius:50%;background:${V.teal}15;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${V.teal};">${i + 1}</div>
+                <div style="flex:1;">
+                    <strong style="color: var(--voya-dark); font-size: 15px;">${esc(comp.company || '')} &mdash; <span class="text-orange">${esc(comp.pricing_model || '')}</span></strong>
+                    ${comp.price_range ? `<div style="margin-top:4px;"><span class="badge badge-teal">${esc(comp.price_range)}</span></div>` : ''}
+                    <p class="paragraph" style="margin-top: 6px; font-size: 13px;">${esc(comp.key_lesson || comp.lesson || '')}</p>
+                    ${comp.relevance ? `<p class="footnote" style="margin-top: 4px;"><em>Relevance: ${esc(comp.relevance)}</em></p>` : ''}
+                </div>
+            </div>`).join('')}
+            <p class="source-note">AI-generated comparable company analysis</p>
+            ${trackSource('AI-generated comparable company analysis')}
+        </div>
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Red Flags to Address
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && arr(d.investor_narrative?.red_flags_to_address).length > 0 ? `
+    ${pageStart('Red Flags')}
+        <h2 class="section-title">Red Flags to Address</h2>
+        <p class="section-subtitle">Critical issues that investors will scrutinise — with prepared responses</p>
+
+        ${arr(d.investor_narrative.red_flags_to_address).map((flag: any, i: number) => `
+        <div class="exhibit-box" style="margin-bottom:12px; border-left: 4px solid ${V.red};">
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+                <span style="color:${V.red};font-size:18px;min-width:24px;">&#9888;</span>
+                <div>
+                    <p class="paragraph" style="margin:0;color:${V.red};font-weight:600;">${esc(typeof flag === 'string' ? flag : flag.flag || flag.issue || '')}</p>
+                    ${typeof flag === 'object' && flag.mitigation ? `<p class="paragraph" style="margin:6px 0 0 0;font-size:13px;">${esc(flag.mitigation)}</p>` : ''}
+                </div>
+            </div>
+        </div>`).join('')}
+        ${trackSource('PricePoint Red Flag Analysis')}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Investor Questions (Q&A)
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && arr(d.investor_narrative?.investor_questions_to_prepare).length > 0 ? `
+    ${pageStart('Investor Questions')}
+        <h2 class="section-title">Investor Questions to Prepare For</h2>
+        <p class="section-subtitle">Anticipated investor questions with prepared answers</p>
+
+        ${arr(d.investor_narrative.investor_questions_to_prepare).map((q: any, i: number) => `
+        <div class="qa-card">
+            <div class="qa-q"><span class="badge badge-teal" style="margin-right:8px;">Q${i + 1}</span>${esc(typeof q === 'string' ? q : q.question || '')}</div>
+            ${typeof q === 'object' && q.prepared_answer ? `<div class="qa-a">${esc(q.prepared_answer)}</div>` : ''}
+        </div>`).join('')}
+        ${trackSource('PricePoint Investor Q&A Preparation')}
+    ${pageEnd}
+    ` : ''}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Financial Scenarios + Visual Analytics
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && d.chart_data ? `
+    ${pageStart('Visual Analytics')}
         <h2 class="section-title">Visual Analytics</h2>
         <p class="section-subtitle">Data-driven visual insights for investor-grade analysis</p>
 
@@ -2013,79 +2517,6 @@ export function generateHTMLTemplate(payload: any): string {
             <p class="source-note">${esc(txt(d.chart_data.ltv_cac_waterfall.description, 'LTV:CAC waterfall breakdown'))}</p>
             ${trackSource(txt(d.chart_data.ltv_cac_waterfall.description, 'LTV:CAC waterfall breakdown'))}
         </div>` : ''}
-        ` : ''}
-    ${pageEnd}
-    ` : ''}
-
-    <!-- ═══════════════════════════════════════════════
-         INVESTOR ONLY: Revenue Projection + Investor Narrative
-         ═══════════════════════════════════════════════ -->
-    ${isInvestor ? `
-    ${pageStart('Investor Intelligence')}
-        <h2 class="section-title">Investor Intelligence</h2>
-        <p class="section-subtitle">Revenue projections, comparable analysis, and investor-ready narrative</p>
-
-        ${d.chart_data?.revenue_projection_12m ? `
-        <div class="exhibit-box">
-            <div class="exhibit-header">${nextExhibit('12-Month Revenue Projection')}</div>
-            <div class="chart-container">${generateRevenueChartSVG(
-                arr(d.chart_data.revenue_projection_12m.labels),
-                arr(d.chart_data.revenue_projection_12m.conservative),
-                arr(d.chart_data.revenue_projection_12m.base_case),
-                arr(d.chart_data.revenue_projection_12m.optimistic)
-            )}</div>
-            <p class="source-note">${esc(txt(d.chart_data.revenue_projection_12m.description, '12-month forward revenue projection across three scenarios'))}</p>
-            ${trackSource(txt(d.chart_data.revenue_projection_12m.description, '12-month forward revenue projection across three scenarios'))}
-        </div>` : ''}
-
-        ${d.investor_narrative ? `
-        <h3 class="subsection-title">Investor Narrative</h3>
-        <div class="pull-quote">
-            ${esc(txt(d.investor_narrative.pricing_thesis))}
-            <span class="attribution">Pricing Thesis</span>
-        </div>
-
-        ${d.investor_narrative.defensibility_statement ? `
-        <div class="callout teal">
-            <div class="callout-label">${svgIcon('shield', V.teal, 20)} &nbsp;Defensibility Statement</div>
-            <p style="margin: 6px 0 0 0; font-size: 14px;">${esc(d.investor_narrative.defensibility_statement)}</p>
-        </div>` : ''}
-
-        ${arr(d.investor_narrative.comparable_companies).length > 0 ? `
-        <div class="exhibit-box" style="margin-top: 18px;">
-            <div class="exhibit-header">${nextExhibit('Comparable Companies')}</div>
-            ${arr(d.investor_narrative.comparable_companies).map((comp: any, i: number) => `
-            <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;${i > 0 ? `border-top:1px solid ${V.border};` : ''}">
-                <div style="min-width:36px;height:36px;border-radius:50%;background:${V.teal}15;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${V.teal};">${i + 1}</div>
-                <div>
-                    <strong style="color: var(--voya-dark); font-size: 14px;">${esc(comp.company || '')} &mdash; <span class="text-orange">${esc(comp.pricing_model || '')}</span></strong>
-                    <p class="footnote" style="margin-top: 4px;">${esc(comp.key_lesson || '')}</p>
-                </div>
-            </div>`).join('')}
-            <p class="source-note">AI-generated comparable company analysis</p>
-            ${trackSource('AI-generated comparable company analysis')}
-        </div>` : ''}
-
-        ${arr(d.investor_narrative.red_flags_to_address).length > 0 ? `
-        <h4 class="subsection-title">Red Flags to Address</h4>
-        ${arr(d.investor_narrative.red_flags_to_address).map((flag: string) => `
-            <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">
-                <span style="color:${V.red};font-size:16px;">&#9888;</span>
-                <p class="paragraph" style="margin:0;color:${V.red};">${esc(flag)}</p>
-            </div>
-        `).join('')}` : ''}
-
-        ${arr(d.investor_narrative.investor_questions_to_prepare).length > 0 ? `
-        <h4 class="subsection-title">Prepare For These Questions</h4>
-        <div class="exhibit-box">
-            ${arr(d.investor_narrative.investor_questions_to_prepare).map((q: string, i: number) => `
-            <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;${i > 0 ? `border-top:1px solid ${V.border};` : ''}">
-                <span class="badge badge-teal" style="min-width:30px;text-align:center;">Q${i + 1}</span>
-                <p class="paragraph" style="margin:0;font-size:13px;">${esc(q)}</p>
-            </div>
-            `).join('')}
-        </div>` : ''}
-        ` : ''}
     ${pageEnd}
     ` : ''}
 
@@ -2097,7 +2528,6 @@ export function generateHTMLTemplate(payload: any): string {
         <h2 class="section-title">Audit Findings</h2>
         <p class="section-subtitle">Comprehensive pricing health assessment and recommendations</p>
 
-        <!-- Pricing Health Gauge -->
         <div style="display:flex;gap:24px;align-items:center;margin-bottom:20px;">
             <div>
                 ${generateGaugeSVG(num(d.audit_findings.pricing_health_score), 100, 'Pricing Health Score', '')}
@@ -2139,7 +2569,49 @@ export function generateHTMLTemplate(payload: any): string {
     ${pageEnd}
     ` : ''}
 
+    <!-- ═══════════════════════════════════════════════
+         ALL TIERS: Full Input Audit
+         ═══════════════════════════════════════════════ -->
+    ${pageStart('Input Audit')}
+        <h2 class="section-title">Full Input Audit</h2>
+        <p class="section-subtitle">Complete record of all data inputs used to generate this report</p>
 
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Input Data Audit')}</div>
+            <table class="audit-table">
+                ${answerEntries.map((entry: any) => `
+                <tr>
+                    <td>${esc(entry.question)}</td>
+                    <td>${esc(entry.answer === '__NA__' || entry.answer === 'undefined' || entry.answer === 'null' ? 'Not provided' : entry.answer)}</td>
+                </tr>`).join('')}
+            </table>
+        </div>
+
+        <div class="callout" style="margin-top: 14px;">
+            <div class="callout-label">Data Integrity Note</div>
+            <p style="margin: 6px 0 0 0; font-size: 12px;">All values above were provided by the user during the PricePoint session. The pricing engine and AI analysis used these inputs as the foundation for all calculations and recommendations in this report.</p>
+        </div>
+        ${trackSource('PricePoint Session Input Data')}
+    ${pageEnd}
+
+    <!-- ═══════════════════════════════════════════════
+         INVESTOR ONLY: Glossary of Pricing Terms
+         ═══════════════════════════════════════════════ -->
+    ${isInvestor && arr(d.glossary).length > 0 ? `
+    ${pageStart('Glossary')}
+        <h2 class="section-title">Glossary of Pricing Terms</h2>
+        <p class="section-subtitle">Key pricing and business terminology used throughout this report</p>
+
+        <div class="glossary-grid">
+            ${arr(d.glossary).map((item: any) => `
+            <div class="glossary-item">
+                <div class="glossary-term">${esc(item.term || '')}</div>
+                <div class="glossary-def">${esc(item.definition || '')}</div>
+            </div>`).join('')}
+        </div>
+        ${trackSource('PricePoint Glossary')}
+    ${pageEnd}
+    ` : ''}
 
     <!-- ═══════════════════════════════════════════════
          ALL TIERS: Sources & References
