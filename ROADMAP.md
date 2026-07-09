@@ -1,8 +1,8 @@
 # PricePoint — Master Roadmap & Checklist
 
-> **Last Updated**: 2026-07-08  
-> **Current Phase**: Phase 5 ~95% Complete — PDF Tier Spec ✅ + Intelligence Frontend ✅  
-> **Next Task**: Competitor confirmation UI polish + deployment prep (Phase 6)
+> **Last Updated**: 2026-07-09  
+> **Current Phase**: Phase 5 ✅ COMPLETE → Deployment & Production Hardening (Phase 6)  
+> **Next Task**: §5 — Environment config, CORS, Dodo live switch, hosting setup
 
 ---
 
@@ -199,7 +199,7 @@ All 6 endpoints are built in `server/src/routes/intelligence.ts` (730 lines):
   - `validateVanWestendorp(sliders, marketData)` — 3 alert types (Confidence, Positioning, Race-to-Bottom)
   - `resetIntelligence()` — full state reset
 
-### 4.5 · Frontend Intelligence UI Components — ✅ ~90% COMPLETE
+### 4.5 · Frontend Intelligence UI Components — ✅ COMPLETE
 - [x] **`MarketIntelligencePanel.tsx`** (435 lines) — Competitor Pricing Table + Market Demand Card + shimmer loading states + status badges
 - [x] **Wire `MarketIntelligencePanel` into `QuestionNode.tsx`** — rendered inside `market_research` stage node (L1005-1008)
 - [x] **Question 0 — "Enter your URL"** (`ProductIntelEntry.tsx`, 405 lines)
@@ -207,12 +207,14 @@ All 6 endpoints are built in `server/src/routes/intelligence.ts` (730 lines):
   - [x] Loading state: progress indicators for scraping/geolocation
   - [x] Pre-fill results: editable fields with ✨ "Auto-detected" labels
 - [x] **Geo-detection badge** — fires on app load (`App.tsx`), `LandingView`, and `MindMap` mount; `GeoBadge` component in `ProductIntelEntry`
-- [ ] **Competitor confirmation UI** — checkbox list from discovered competitors + "Add manually" input (store method `confirmCompetitors()` exists, no UI yet)
-- [ ] **Demand signal card** — replace "Expected Volume" field with demand card
-- [ ] **Currency pill** on price inputs — "GBP £" with auto-conversion tooltip
+- [x] **Competitor confirmation UI** — checkbox list in `MarketIntelligencePanel` with toggle, manual URL add, and "Scrape Prices" confirm button
 - [x] **Van Westendorp validation alerts** — inline alert cards after slider submission (L1010-1020)
 - [x] **Auto-fill from intelligence** — geo country/currency/VAT, product name/description, competitor prices auto-populate form fields (L528-615)
 - [x] **Auto-trigger competitor discovery + demand analysis** — fires on `product_classification` submit (L707-721)
+
+#### Cosmetic Polish Backlog (Low Priority — deferred)
+- [ ] **Demand signal card** — replace "Expected Volume" field with demand card
+- [ ] **Currency pill** on price inputs — "GBP £" with auto-conversion tooltip
 
 ### 4.6 · Intelligence → Report Pipeline Integration — ✅ COMPLETE
 - [x] **`ResultNode.tsx`** — gathers all intelligence from `useIntelligenceStore` (geo, preFill, competitors, pricing, demand, vwAlerts) and sends to `reports/initialize` (L146-177)
@@ -225,20 +227,26 @@ All 6 endpoints are built in `server/src/routes/intelligence.ts` (730 lines):
 
 ---
 
-## 5 · Deployment & Production Hardening — ⬜ NOT STARTED
+## 5 · Deployment & Production Hardening — 🔨 IN PROGRESS
 
-- [ ] **Environment configuration** — production `.env` with all API keys
-- [ ] **Dodo Payments** — switch from test (`test.dodopayments.com`) to live
-- [ ] **CORS hardening** — restrict to production domain (currently `origin: '*'`)
-- [ ] **Webhook signature verification** — validate `dodo-signature` HMAC
-- [ ] **HTTPS enforcement**
-- [ ] **Rate limiting** — move from in-memory to Redis for multi-instance
+### Code Hardening (Done)
+- [x] **Centralize API_BASE** — all client fetch calls use `VITE_API_URL` env var (Success.tsx, ResultNode.tsx, ProfilePage.tsx, useIntelligenceStore.ts)
+- [x] **CORS hardening** — `ALLOWED_ORIGINS` env var, defaults to localhost in dev
+- [x] **Dodo Payments** — env-aware `DODO_API_URL` (test vs live), `APP_URL` for return URLs
+- [x] **Webhook HMAC verification** — `DODO_WEBHOOK_SECRET` with `crypto.timingSafeEqual`, rejects in production if invalid
+- [x] **Environment templates** — `server/.env.example` + `client/.env.example` with all vars documented
+- [x] **SEO** — Open Graph, Twitter Card, canonical URL, robots, keywords in `index.html`
+- [x] **Server PORT from env** — `process.env.PORT || 3000`
+
+### Remaining (Manual Action Required)
+- [ ] **Dodo Payments live products** — create live products and update `DODO_PAYMENTS_API_KEY` + product IDs
+- [ ] **Domain & hosting** setup (Netlify / Vercel for frontend, Railway / Render for backend)
+- [ ] **HTTPS enforcement** — handled by hosting platform
+- [ ] **CI/CD pipeline** — GitHub Actions or similar
+- [ ] **Rate limiting** — move from in-memory to Redis for multi-instance (only at scale)
 - [ ] **Error monitoring** — Sentry or equivalent
 - [ ] **Logging** — structured logging to external service
-- [ ] **CI/CD pipeline** — build, test, deploy
-- [ ] **Domain & hosting** setup (Netlify / Vercel for frontend, Railway / Render for backend)
 - [ ] **Database migrations** — production Prisma migration strategy
-- [ ] **SEO** — meta tags, OG images, sitemap
 
 ---
 
@@ -259,13 +267,13 @@ All 6 endpoints are built in `server/src/routes/intelligence.ts` (730 lines):
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 1 | Wire `MarketIntelligencePanel` into MindMap `market_research` stage | `QuestionNode.tsx` | ✅ |
-| 2 | Build "Question 0" URL entry screen | `ProductIntelEntry.tsx` | ✅ |
-| 3 | Fire `runGeolocate()` on app load, show badge | `App.tsx` + `LandingView.tsx` + `MindMap.tsx` | ✅ |
-| 4 | Fire `runPreFill()` on URL submit, show pre-filled fields | `ProductIntelEntry.tsx` + `LandingView.tsx` | ✅ |
-| 5 | Build competitor confirmation UI (checkboxes) | New component in MindMap | ⬜ |
-| 6 | Intelligence data in report pipeline | `ResultNode.tsx` → `reports.ts` → `claude.ts` | ✅ |
-| 7 | Complete PDF Tier Spec (remaining ~60%) | `pdfTemplate.ts` (2685 lines) | ✅ |
+| 1 | Centralize API_BASE across client | `Success.tsx` + `ResultNode.tsx` | ✅ |
+| 2 | CORS hardening — env-aware origin whitelist | `server.ts` | ✅ |
+| 3 | Dodo Payments — env-aware URL (`DODO_API_URL`) | `reports.ts` | ✅ |
+| 4 | Webhook HMAC verification | `webhooks.ts` | ✅ |
+| 5 | Environment config templates | `.env.example` (server + client) | ✅ |
+| 6 | SEO — OG + Twitter + canonical + robots | `index.html` | ✅ |
+| 7 | Domain & hosting setup | Netlify + Railway/Render | ⬜ |
 | 8 | Get `APIFY_API_TOKEN` for competitor discovery | `.env` | 🔑 |
 | 9 | Get `DATAFORSEO_LOGIN/PASSWORD` for demand analysis | `.env` | 🔑 |
 

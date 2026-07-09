@@ -1,26 +1,64 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/db';
+import crypto from 'crypto';
+
+/**
+ * Verify Dodo webhook signature using HMAC-SHA256.
+ * Returns true if valid or if running in dev without a secret configured.
+ */
+function verifyDodoSignature(rawBody: string, signature: string | undefined, secret: string | undefined): boolean {
+    if (!secret) {
+        // No secret configured — allow in dev, reject in production
+        if (process.env.NODE_ENV === 'production') return false;
+        return true;
+    }
+    if (!signature) return false;
+
+    const expected = crypto
+        .createHmac('sha256', secret)
+        .update(rawBody)
+        .digest('hex');
+
+    return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expected)
+    );
+}
 
 export default async function (server: FastifyInstance) {
+
+    // Need raw body for HMAC verification
+    server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+        try {
+            const json = JSON.parse(body as string);
+            // Stash raw body for signature verification
+            (req as any).rawBody = body;
+            done(null, json);
+        } catch (err: any) {
+            done(err, undefined);
+        }
+    });
 
     // ──────────────────────────────────────────────────────────
     // 4. Webhook Receiver from Dodo Payments
     // ──────────────────────────────────────────────────────────
     server.post('/api/webhooks/dodo', async (request, reply) => {
         try {
-            const signature = request.headers['dodo-signature'];
-            if (!signature) {
-                return reply.status(400).send({ error: 'Missing Signature' });
+            const signature = request.headers['dodo-signature'] as string | undefined;
+            const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
+            const rawBody = (request as any).rawBody || JSON.stringify(request.body);
+
+            // Verify HMAC signature
+            if (!verifyDodoSignature(rawBody, signature, webhookSecret)) {
+                server.log.warn('Webhook signature verification failed');
+                return reply.status(401).send({ error: 'Invalid signature' });
             }
 
-            // In production, we'd verify the hmac signature using the Dodo Webhook Secret
-            // For now, assume payload is valid JSON from Dodo
-            const rawBody = request.body as any;
+            const rawPayload = request.body as any;
 
             // Extract Dodo metadata
-            // Dodo webhooks usually follow a payload structure: { "data": { "metadata": { "documentId": "..." }, "status": "succeeded" }, "type": "payment.succeeded" }
-            const eventType = rawBody.type || (rawBody.data && rawBody.data.status);
-            const metadata = rawBody.data?.metadata || rawBody.metadata;
+            const eventType = rawPayload.type || (rawPayload.data && rawPayload.data.status);
+            const metadata = rawPayload.data?.metadata || rawPayload.metadata;
 
             if (eventType === 'payment.succeeded' || eventType === 'succeeded' || eventType === 'paid') {
                 const documentId = metadata?.documentId;
@@ -32,7 +70,7 @@ export default async function (server: FastifyInstance) {
                 // IMPORTANT: Transition the Report Status to 'Paid' securely on the backend
                 await prisma.report.update({
                     where: { documentId },
-                    data: { paymentStatus: 'Paid' } // This unlocks the /generate-narrative route
+                    data: { paymentStatus: 'Paid' }
                 });
 
                 server.log.info(`Report ${documentId} successfully marked as PAID via webhook.`);

@@ -2,6 +2,9 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/db';
 import { supabase } from '../lib/supabase';
 
+const DODO_API_BASE = process.env.DODO_API_URL || 'https://test.dodopayments.com';
+const APP_URL = process.env.APP_URL || 'http://localhost:5173';
+
 export default async function (server: FastifyInstance) {
 
     // ──────────────────────────────────────────────────────────
@@ -128,14 +131,14 @@ export default async function (server: FastifyInstance) {
                         quantity: 1
                     }
                 ],
-                return_url: returnUrl || `http://localhost:5173/success?documentId=${report.documentId}`
+                return_url: returnUrl || `${APP_URL}/success?documentId=${report.documentId}`
             };
 
             // Forward billing/customer only if provided by frontend
             if (clientBilling) checkoutBody.billing = clientBilling;
             if (clientCustomer) checkoutBody.customer = clientCustomer;
 
-            const response = await fetch('https://test.dodopayments.com/checkouts', {
+            const response = await fetch(`${DODO_API_BASE}/checkouts`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -192,7 +195,7 @@ export default async function (server: FastifyInstance) {
                     const checkoutId = report.stripeCheckoutId;
 
                     // Query the Dodo checkouts endpoint
-                    const checkRes = await fetch(`https://test.dodopayments.com/checkouts/${checkoutId}`, {
+                    const checkRes = await fetch(`${DODO_API_BASE}/checkouts/${checkoutId}`, {
                         headers: { 'Authorization': `Bearer ${dodoApiKey}` }
                     });
 

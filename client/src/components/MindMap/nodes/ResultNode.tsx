@@ -8,6 +8,8 @@ import { AuthModal } from '../../AuthModal';
 import { getCurrencyFromAnswers } from '../../../utils/currency';
 import { supabase } from '../../../lib/supabase';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
+
 // ============================================================
 // ResultNode — Trinity Price Quote (Phase 3)
 //
@@ -164,7 +166,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
             }
 
             // 1. Initialize DB Record
-            const initRes = await fetch('http://127.0.0.1:3000/api/reports/initialize', {
+            const initRes = await fetch(`${API_BASE}/api/reports/initialize`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -182,7 +184,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
             const { documentId } = await initRes.json();
 
             // 2. Generate Dodo Checkout URL
-            const checkoutRes = await fetch('http://127.0.0.1:3000/api/checkout', {
+            const checkoutRes = await fetch(`${API_BASE}/api/checkout`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

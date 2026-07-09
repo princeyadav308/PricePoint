@@ -1,11 +1,11 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useRef, useState, useCallback } from 'react';
 import {
     Globe, TrendingUp, Search, ExternalLink,
     Sparkles, Loader2, AlertCircle, BarChart3,
-    DollarSign, Users, Zap,
+    DollarSign, Users, Zap, Check, Plus, X,
 } from 'lucide-react';
 import { useIntelligenceStore } from '../../../store/useIntelligenceStore';
-import type { AsyncStatus, CompetitorPricing, DemandData } from '../../../store/useIntelligenceStore';
+import type { AsyncStatus, Competitor, CompetitorPricing, DemandData } from '../../../store/useIntelligenceStore';
 
 // ============================================================
 // MarketIntelligencePanel — Embedded in market_research stage
@@ -369,6 +369,198 @@ const MarketPriceRangeSummary = memo(({
     );
 });
 
+// ── Competitor Confirmation List ─────────────────────────────
+const CompetitorConfirmationList = memo(({
+    competitors,
+    onConfirm,
+}: {
+    competitors: Competitor[];
+    onConfirm: (selected: Competitor[]) => void;
+}) => {
+    const [selected, setSelected] = useState<Set<number>>(
+        () => new Set(competitors.map((_, i) => i))
+    );
+    const [manualUrl, setManualUrl] = useState('');
+    const [extras, setExtras] = useState<Competitor[]>([]);
+
+    const toggle = useCallback((idx: number) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(idx)) next.delete(idx);
+            else next.add(idx);
+            return next;
+        });
+    }, []);
+
+    const addManual = useCallback(() => {
+        const trimmed = manualUrl.trim();
+        if (!trimmed) return;
+        const url = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+        setExtras((prev) => [...prev, { name: trimmed, url, snippet: 'Manually added', priceFound: null }]);
+        setManualUrl('');
+    }, [manualUrl]);
+
+    const removeExtra = useCallback((idx: number) => {
+        setExtras((prev) => prev.filter((_, i) => i !== idx));
+    }, []);
+
+    const allCompetitors = [...competitors, ...extras];
+    const selectedCount = selected.size + extras.length;
+
+    const handleConfirm = useCallback(() => {
+        const confirmed = [
+            ...competitors.filter((_, i) => selected.has(i)),
+            ...extras,
+        ];
+        onConfirm(confirmed);
+    }, [competitors, selected, extras, onConfirm]);
+
+    return (
+        <div className="space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-400">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-background-light dark:bg-background-dark outer-shadow text-primary transition-all duration-300">
+                        <Search size={13} />
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Discovered Competitors
+                    </span>
+                </div>
+                <StatusBadge status="success" label={`${allCompetitors.length} found`} />
+            </div>
+
+            {/* Checkbox list */}
+            <div className="rounded-xl outer-shadow bg-background-light dark:bg-background-dark overflow-hidden">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800/30">
+                    {competitors.map((c, idx) => {
+                        const domain = (() => {
+                            try { return new URL(c.url).hostname.replace('www.', ''); }
+                            catch { return c.name; }
+                        })();
+                        const isChecked = selected.has(idx);
+
+                        return (
+                            <label
+                                key={idx}
+                                className="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-all duration-300 hover:bg-primary/5 group"
+                            >
+                                {/* Custom checkbox */}
+                                <button
+                                    type="button"
+                                    onClick={() => toggle(idx)}
+                                    className={`
+                                        w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0
+                                        transition-all duration-300
+                                        ${isChecked
+                                            ? 'bg-primary text-white inner-shadow'
+                                            : 'bg-background-light dark:bg-background-dark inner-shadow text-transparent'
+                                        }
+                                    `}
+                                >
+                                    <Check size={12} strokeWidth={3} />
+                                </button>
+
+                                {/* Competitor info */}
+                                <div className="flex-1 min-w-0">
+                                    <span className={`text-xs font-medium block truncate transition-all duration-300 ${
+                                        isChecked
+                                            ? 'text-text-light dark:text-text-dark'
+                                            : 'text-slate-400 line-through'
+                                    }`}>
+                                        {domain}
+                                    </span>
+                                    {c.snippet && (
+                                        <span className="text-[10px] text-slate-400 block truncate">
+                                            {c.snippet}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* External link */}
+                                <a
+                                    href={c.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-primary hover:text-primary-dark"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <ExternalLink size={11} />
+                                </a>
+                            </label>
+                        );
+                    })}
+
+                    {/* Manually added extras */}
+                    {extras.map((c, idx) => {
+                        const domain = (() => {
+                            try { return new URL(c.url).hostname.replace('www.', ''); }
+                            catch { return c.name; }
+                        })();
+                        return (
+                            <div key={`extra-${idx}`} className="flex items-center gap-3 px-4 py-2.5 group">
+                                <div className="w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary text-white inner-shadow">
+                                    <Plus size={12} strokeWidth={3} />
+                                </div>
+                                <span className="text-xs font-medium text-text-light dark:text-text-dark flex-1 truncate">
+                                    {domain}
+                                </span>
+                                <button
+                                    onClick={() => removeExtra(idx)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-red-400 hover:text-red-500"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Add manually row */}
+                <div className="flex items-center gap-2 px-4 py-2.5 border-t border-slate-200/50 dark:border-slate-700/30">
+                    <input
+                        type="text"
+                        value={manualUrl}
+                        onChange={(e) => setManualUrl(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && addManual()}
+                        placeholder="Add competitor URL..."
+                        className="flex-1 bg-transparent text-xs text-text-light dark:text-text-dark placeholder:text-slate-400 outline-none"
+                    />
+                    <button
+                        onClick={addManual}
+                        disabled={!manualUrl.trim()}
+                        className={`
+                            px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all duration-300
+                            ${manualUrl.trim()
+                                ? 'bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer'
+                                : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                            }
+                        `}
+                    >
+                        <Plus size={12} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Confirm button */}
+            <button
+                onClick={handleConfirm}
+                disabled={selectedCount === 0}
+                className={`
+                    w-full py-2.5 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2
+                    ${selectedCount > 0
+                        ? 'bg-primary hover:bg-primary-dark text-white outer-shadow cursor-pointer active:scale-[0.98]'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                    }
+                `}
+            >
+                <Globe size={13} />
+                Scrape Prices for {selectedCount} Competitor{selectedCount !== 1 ? 's' : ''}
+            </button>
+        </div>
+    );
+});
+
 // ═══════════════════════════════════════════════════════════════
 // Main Panel
 // ═══════════════════════════════════════════════════════════════
@@ -380,27 +572,30 @@ export const MarketIntelligencePanel = memo(() => {
     const marketPriceRange = useIntelligenceStore((s) => s.marketPriceRange);
     const competitorStatus = useIntelligenceStore((s) => s.competitorStatus);
     const discoveredCompetitors = useIntelligenceStore((s) => s.discoveredCompetitors);
+    const confirmedCompetitors = useIntelligenceStore((s) => s.confirmedCompetitors);
+    const confirmCompetitors = useIntelligenceStore((s) => s.confirmCompetitors);
     const runPriceScraping = useIntelligenceStore((s) => s.runPriceScraping);
 
-    // Auto-trigger price scraping once competitors are discovered
+    // Confirmation-gated price scraping
     const hasFiredScrape = useRef(false);
-    useEffect(() => {
-        if (
-            competitorStatus === 'success' &&
-            discoveredCompetitors.length > 0 &&
-            pricingStatus === 'idle' &&
-            !hasFiredScrape.current
-        ) {
-            hasFiredScrape.current = true;
-            const urls = discoveredCompetitors.map((c) => c.url).filter(Boolean);
-            if (urls.length > 0) {
-                runPriceScraping(urls);
-            }
+    const showConfirmation = competitorStatus === 'success'
+        && discoveredCompetitors.length > 0
+        && confirmedCompetitors.length === 0
+        && pricingStatus === 'idle'
+        && !hasFiredScrape.current;
+
+    const handleConfirmCompetitors = useCallback((selected: Competitor[]) => {
+        hasFiredScrape.current = true;
+        confirmCompetitors(selected);
+        const urls = selected.map((c) => c.url).filter(Boolean);
+        if (urls.length > 0) {
+            runPriceScraping(urls);
         }
-    }, [competitorStatus, discoveredCompetitors, pricingStatus, runPriceScraping]);
+    }, [confirmCompetitors, runPriceScraping]);
 
     // Only render if any intelligence pipeline is active
-    const isActive = pricingStatus !== 'idle' || demandStatus !== 'idle' || competitorStatus === 'loading';
+    const isActive = pricingStatus !== 'idle' || demandStatus !== 'idle'
+        || competitorStatus !== 'idle' || showConfirmation;
     if (!isActive) return null;
 
     return (
@@ -415,13 +610,21 @@ export const MarketIntelligencePanel = memo(() => {
                 <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
             </div>
 
+            {/* Competitor Confirmation — shown before scraping */}
+            {showConfirmation && (
+                <CompetitorConfirmationList
+                    competitors={discoveredCompetitors}
+                    onConfirm={handleConfirmCompetitors}
+                />
+            )}
+
             {/* Market Price Range Summary */}
             <MarketPriceRangeSummary range={marketPriceRange} />
 
             {/* Competitor Pricing Table */}
             <CompetitorPricingTable
                 pricing={competitorPricing}
-                status={pricingStatus !== 'idle' ? pricingStatus : competitorStatus}
+                status={pricingStatus !== 'idle' ? pricingStatus : (showConfirmation ? 'idle' : competitorStatus)}
             />
 
             {/* Market Demand Card */}

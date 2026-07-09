@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle2, Loader2, ArrowRight, ShieldCheck, X, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
+
 export default function Success() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -23,7 +25,7 @@ export default function Success() {
             const token = sessionData.session?.access_token;
             if (!token) return; // Not authenticated, skip email
 
-            await fetch('http://127.0.0.1:3000/api/reports/send-email', {
+            await fetch(`${API_BASE}/api/reports/send-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -47,7 +49,7 @@ export default function Success() {
 
         const checkStatus = async () => {
             try {
-                const res = await fetch(`http://127.0.0.1:3000/api/reports/status/${documentId}`);
+                const res = await fetch(`${API_BASE}/api/reports/status/${documentId}`);
                 const data = await res.json();
 
                 if (data.paymentStatus === 'Paid') {
@@ -96,7 +98,7 @@ export default function Success() {
         const generateNarrative = async () => {
             try {
                 // Fetch the generated AI narrative based on Tier
-                const res = await fetch('http://127.0.0.1:3000/api/generate-report', {
+                const res = await fetch(`${API_BASE}/api/generate-report`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -248,7 +250,7 @@ export default function Success() {
                             const handleDownloadPDF = async () => {
                                 setPdfLoading(true);
                                 try {
-                                    const res = await fetch('http://127.0.0.1:3000/api/generate-pdf', {
+                                    const res = await fetch(`${API_BASE}/api/generate-pdf`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
