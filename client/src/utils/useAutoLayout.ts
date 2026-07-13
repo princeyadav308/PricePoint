@@ -11,7 +11,7 @@ import { Node, Edge, Position } from 'reactflow';
 const NODE_DIMS: Record<string, { width: number; height: number }> = {
     rootNode: { width: 200, height: 200 },
     journeyNode: { width: 320, height: 180 },
-    classificationNode: { width: 400, height: 520 },
+    classificationNode: { width: 400, height: 850 },
     resultNode: { width: 1100, height: 600 },
     stageNode: { width: 224, height: 64 },
 };

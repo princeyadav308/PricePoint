@@ -13,6 +13,7 @@ import intelligenceRoutes from './routes/intelligence';
 import userRoutes from './routes/user';
 
 import { prisma } from './lib/db';
+import { supabase } from './lib/supabase';
 
 // Load environment variables
 dotenv.config();
@@ -44,6 +45,17 @@ server.get('/', async (request, reply) => {
 // ── Claude Generation Endpoint ───────────────────────────────────
 server.post('/api/generate-report', async (request, reply) => {
     try {
+        // Authenticate request
+        const authHeader = request.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return reply.status(401).send({ error: 'Missing or invalid Authorization header' });
+        }
+        const token = authHeader.split(' ')[1];
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) {
+            return reply.status(401).send({ error: 'Unauthorized: Invalid token' });
+        }
+
         const { sessionData, pricingResult, appliedModifiers, tier, intelligenceData } = request.body as any;
 
         // Secure Endpoint: Ensure core data exists
@@ -78,8 +90,20 @@ server.post('/api/generate-report', async (request, reply) => {
 
 // ── Puppeteer PDF Generation Endpoint ───────────────────────────────────
 server.post('/api/generate-pdf', async (request, reply) => {
-    let browser;
+    let browser = null;
+    let page = null;
     try {
+        // Authenticate request
+        const authHeader = request.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return reply.status(401).send({ error: 'Missing or invalid Authorization header' });
+        }
+        const token = authHeader.split(' ')[1];
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) {
+            return reply.status(401).send({ error: 'Unauthorized: Invalid token' });
+        }
+
         const { claudeData, pricingResult, sessionData, tier } = request.body as any;
 
         // Validate required data
@@ -101,7 +125,7 @@ server.post('/api/generate-pdf', async (request, reply) => {
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
-        const page = await browser.newPage();
+        page = await browser.newPage();
 
         // Set content and wait for fonts to load
         await page.setContent(htmlContent, {
@@ -123,8 +147,6 @@ server.post('/api/generate-pdf', async (request, reply) => {
             `,
         });
 
-        await browser.close();
-
         // Return PDF as binary response
         reply.type('application/pdf');
         reply.header('Content-Disposition', `attachment; filename="PricePoint_Report_${sessionData?.answers?.projectName?.value || 'Document'}.pdf"`);
@@ -132,8 +154,15 @@ server.post('/api/generate-pdf', async (request, reply) => {
 
     } catch (error) {
         server.log.error(error);
-        if (browser) await browser.close();
         return reply.status(500).send({ error: 'Failed to generate PDF' });
+    } finally {
+        // Always clean up page and browser resources
+        if (page) {
+            try { await page.close(); } catch { /* ignore close errors */ }
+        }
+        if (browser) {
+            try { await browser.close(); } catch { /* ignore close errors */ }
+        }
     }
 });
 const start = async () => {

@@ -124,25 +124,28 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
         );
     }
 
-    // Handle unlocking
+    // Handle unlocking — only works in development mode
     const handleUnlock = () => {
         if (!isAuthenticated) {
             setShowAuthModal(true);
             return;
         }
 
-        // Trigger Stripe Checkout or Dodo Payments Mock
-        // const res = await fetch('http://localhost:3000/api/checkout', { method: 'POST', ... })
-        // window.location.href = res.url;
-
-        // For now, unlock directly
-        unlockQuote(emailInput.trim() || useSessionStore.getState().user?.email || 'user@example.com');
+        // Only allow free unlock in development
+        if (import.meta.env.DEV) {
+            unlockQuote(emailInput.trim() || useSessionStore.getState().user?.email || 'user@example.com');
+        } else {
+            // In production, direct to checkout instead
+            console.warn('Free unlock not available in production');
+        }
     };
 
     const handleCheckout = async (tier: 'Basic' | 'Professional' | 'Investor') => {
         setGeneratingTier(tier);
         try {
-            const fullSessionData = useSessionStore.getState();
+            // Extract only serializable data from session store (not action functions)
+            const { answers, journeyType, productType, user } = useSessionStore.getState();
+            const sessionData = { answers, journeyType, productType, user };
 
             // Build enriched intelligence payload
             const intel = useIntelligenceStore.getState();
@@ -173,7 +176,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    sessionData: fullSessionData,
+                    sessionData: sessionData,
                     pricingResult: data.result,
                     tier: tier,
                     intelligenceData,

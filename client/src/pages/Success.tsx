@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle2, Loader2, ArrowRight, ShieldCheck, X, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -17,24 +17,37 @@ export default function Success() {
     const [pdfLoading, setPdfLoading] = useState(false);
 
     const [savedSessionData, setSavedSessionData] = useState<any>(null);
+    const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Non-blocking email sender — fires and forgets
-    const sendReportEmail = async (docId: string) => {
-        try {
-            const { data: sessionData } = await supabase.auth.getSession();
-            const token = sessionData.session?.access_token;
-            if (!token) return; // Not authenticated, skip email
+    // Non-blocking email sender with retry logic
+    const sendReportEmail = async (docId: string, retries = 3) => {
+        for (let attempt = 0; attempt < retries; attempt++) {
+            try {
+                const { data: sessionData } = await supabase.auth.getSession();
+                const token = sessionData.session?.access_token;
+                if (!token) return; // Not authenticated, skip email
 
-            await fetch(`${API_BASE}/api/reports/send-email`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ documentId: docId })
-            });
-        } catch (err) {
-            console.warn('Email send failed (non-blocking):', err);
+                const res = await fetch(`${API_BASE}/api/reports/send-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ documentId: docId })
+                });
+
+                if (res.ok) return; // Success, exit retry loop
+                
+                // If not last attempt, wait before retrying (exponential backoff)
+                if (attempt < retries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+                }
+            } catch (err) {
+                // If not last attempt, wait before retrying
+                if (attempt < retries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+                }
+            }
         }
     };
 
@@ -57,30 +70,30 @@ export default function Success() {
                     setSavedSessionData(data.sessionData);
                     setSavedTier(data.tier || 'Basic');
                     setStatus('verified');
-
-                    // ── DEBUG: Log raw MindMap answer keys ──
-                    console.log('═══ MINDMAP RAW KEYS ═══');
-                    console.log('savedSessionData:', JSON.stringify(data.sessionData, null, 2));
-                    if (data.sessionData?.answers) {
-                        console.log('Answer keys:', Object.keys(data.sessionData.answers));
-                    }
-                    console.log('═══ END MINDMAP KEYS ═══');
                 } else {
                     // Still waiting (Max 30 retries = 90 seconds)
                     if (pollCount >= 30) {
                         setStatus('error');
                     } else {
-                        setTimeout(() => setPollCount(p => p + 1), 3000);
+                        pollTimerRef.current = setTimeout(() => setPollCount(p => p + 1), 3000);
                     }
                 }
             } catch (error) {
                 console.error("Polling error:", error);
                 if (pollCount >= 30) setStatus('error');
-                else setTimeout(() => setPollCount(p => p + 1), 3000);
+                else pollTimerRef.current = setTimeout(() => setPollCount(p => p + 1), 3000);
             }
         };
 
         checkStatus();
+
+        // Cleanup function to clear any pending timeout
+        return () => {
+            if (pollTimerRef.current) {
+                clearTimeout(pollTimerRef.current);
+                pollTimerRef.current = null;
+            }
+        };
     }, [documentId, status, pollCount]);
 
 
@@ -97,15 +110,20 @@ export default function Success() {
 
         const generateNarrative = async () => {
             try {
+                // Extract clean session data from the combined rawData
+                // rawData = { ...sessionData, pricingResult, intelligenceData }
+                const { pricingResult, intelligenceData, ...cleanSessionData } = savedSessionData;
+
                 // Fetch the generated AI narrative based on Tier
                 const res = await fetch(`${API_BASE}/api/generate-report`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        sessionData: savedSessionData,
-                        pricingResult: savedSessionData.pricingResult,
-                        appliedModifiers: savedSessionData.pricingResult?.appliedModifiers || [],
-                        tier: savedTier
+                        sessionData: cleanSessionData,
+                        pricingResult: pricingResult,
+                        appliedModifiers: pricingResult?.appliedModifiers || [],
+                        tier: savedTier,
+                        intelligenceData: intelligenceData || null
                     })
                 });
 
@@ -119,11 +137,6 @@ export default function Success() {
                         next_steps: ['Retry report generation']
                     },
                 });
-
-                // ── DEBUG: Log Claude response keys ──
-                console.log('═══ CLAUDE RESPONSE KEYS ═══');
-                console.log('Claude data:', JSON.stringify(data.claudeData, null, 2));
-                console.log('═══ END CLAUDE KEYS ═══');
 
                 setStatus('ready');
 
@@ -146,7 +159,7 @@ export default function Success() {
 
         generateNarrative();
 
-    }, [status]);
+    }, [status, savedSessionData, savedTier, documentId]);
 
 
     return (

@@ -8,6 +8,7 @@ import {
     defaultJourneyAContext,
     defaultJourneyBContext,
 } from '../types/session';
+import type { User } from '@supabase/supabase-js';
 
 // ============================================================
 // Session Store — Business Logic State
@@ -23,9 +24,9 @@ interface SessionActions {
     resetSession: () => void;
 
     // Auth
-    user: any | null; // Using `any` for simplicity or could import `User` from @supabase/supabase-js
+    user: User | null;
     isAuthenticated: boolean;
-    setUser: (user: any | null) => void;
+    setUser: (user: User | null) => void;
 }
 
 type SessionStore = SessionData & SessionActions;

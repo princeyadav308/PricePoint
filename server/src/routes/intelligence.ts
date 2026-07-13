@@ -253,23 +253,28 @@ export default async function intelligenceRoutes(server: FastifyInstance) {
 
             // Tier 2: Direct fetch (works for most public pages that don't require JS)
             console.log('[Prefill] Trying direct fetch for: ' + targetUrl);
-            const fetchResp = await fetch(targetUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                },
-                signal: AbortSignal.timeout(15000),
-            });
+            try {
+                const fetchResp = await fetch(targetUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                    },
+                    signal: AbortSignal.timeout(15000),
+                });
 
-            if (!fetchResp.ok) {
-                throw new Error(`Direct fetch failed: ${fetchResp.status} ${fetchResp.statusText}`);
+                if (!fetchResp.ok) {
+                    throw new Error(`Direct fetch failed: ${fetchResp.status} ${fetchResp.statusText}`);
+                }
+
+                const html = await fetchResp.text();
+                const trimmed = html.substring(0, 15000);
+                console.log('[Prefill] Direct fetch success. HTML length: ' + trimmed.length);
+                return trimmed;
+            } catch (fetchError: any) {
+                console.warn('[Prefill] Direct fetch failed:', fetchError.message || 'Unknown error');
+                throw new Error(`All fetch methods failed for ${targetUrl}`);
             }
-
-            const html = await fetchResp.text();
-            const trimmed = html.substring(0, 15000);
-            console.log('[Prefill] Direct fetch success. HTML length: ' + trimmed.length);
-            return trimmed;
         }
 
         // ── Helper: send HTML to Claude for extraction ──

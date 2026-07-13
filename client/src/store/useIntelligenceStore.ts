@@ -183,8 +183,19 @@ export const useIntelligenceStore = create<IntelligenceState>((set) => ({
     runPreFill: async (urlOrName: string) => {
         set({ preFillStatus: 'loading' });
         try {
-            // Treat as URL if it contains a dot, has no spaces, and is long enough
-            const isUrl = urlOrName.includes('.') && !urlOrName.includes(' ') && urlOrName.length > 3;
+            // More robust URL detection: check for protocol or common TLDs
+            let isUrl = false;
+            try {
+                // Try parsing as URL with protocol
+                new URL(urlOrName.startsWith('http') ? urlOrName : `https://${urlOrName}`);
+                isUrl = true;
+            } catch {
+                // Not a valid URL, check for common patterns
+                isUrl = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/.test(urlOrName) && 
+                        !urlOrName.includes(' ') && 
+                        urlOrName.length > 5;
+            }
+            
             const body = isUrl ? { url: urlOrName.startsWith('http') ? urlOrName : `https://${urlOrName}` } : { productName: urlOrName };
 
             const resp = await fetch(`${API_BASE}/api/intelligence/prefill-product`, {

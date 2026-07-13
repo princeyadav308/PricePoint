@@ -59,5 +59,6 @@ export function getCountryCurrencyMismatchWarning(
  */
 export function getCurrencyFromAnswers(answers: Record<string, { value: unknown }>): string {
     const currencyAnswer = answers['currency']?.value;
+    if (!currencyAnswer) return '$';
     return getCurrencySymbol(currencyAnswer as string);
 }

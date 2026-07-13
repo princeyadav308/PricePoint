@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import { LandingView } from './components/LandingView';
@@ -7,11 +7,11 @@ import { useMindMapStore } from './store/useMindMapStore';
 import { useSessionStore } from './store/useSessionStore';
 import { useIntelligenceStore } from './store/useIntelligenceStore';
 import { supabase } from './lib/supabase';
-import { useEffect } from 'react';
 
 function App() {
   const isExpanded = useMindMapStore((s) => s.isExpanded);
   const [isDark, setIsDark] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const toggleDarkMode = () => {
     document.documentElement.classList.toggle('dark');
@@ -25,6 +25,7 @@ function App() {
     // Check active session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       useSessionStore.getState().setUser(session?.user ?? null);
+      setAuthLoading(false);
     });
 
     // Listen for auth changes (login, logout, etc)
@@ -47,7 +48,11 @@ function App() {
       {/* Header & Footer are absolute overlays — they don't push content */}
       <Header isDark={isDark} toggleDarkMode={toggleDarkMode} />
 
-      {isExpanded ? (
+      {authLoading ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : isExpanded ? (
         <div className="w-full h-full">
           <MindMap />
         </div>

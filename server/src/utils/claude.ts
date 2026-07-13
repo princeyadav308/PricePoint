@@ -83,13 +83,23 @@ function parseUECosts(raw: unknown): number {
 // ============================================================
 // Data Sanitiser
 // Replaces __NA__, NA, N/A markers with human-readable "Not provided"
-// so Claude doesn't attempt calculations on sentinel strings.
+// and sanitizes potential prompt injection patterns
 // ============================================================
 function sanitize(data: Record<string, unknown>): Record<string, unknown> {
     const json = JSON.stringify(data)
         .replace(/"__NA__"/g, '"Not provided"')
         .replace(/"N\/A"/g, '"Not provided"')
-        .replace(/"NA"/g, '"Not provided"');
+        .replace(/"NA"/g, '"Not provided"')
+        // Sanitize potential prompt injection patterns
+        .replace(/ignore all previous instructions/gi, '"[redacted instruction]"')
+        .replace(/ignore previous instructions/gi, '"[redacted instruction]"')
+        .replace(/disregard all instructions/gi, '"[redacted instruction]"')
+        .replace(/disregard previous instructions/gi, '"[redacted instruction]"')
+        .replace(/you are now a different ai/gi, '"[redacted instruction]"')
+        .replace(/act as if you are/gi, '"[redacted instruction]"')
+        .replace(/pretend you are/gi, '"[redacted instruction]"')
+        .replace(/new instructions:/gi, '"[redacted instruction]:"')
+        .replace(/system prompt:/gi, '"[redacted]:"');
     return JSON.parse(json);
 }
 

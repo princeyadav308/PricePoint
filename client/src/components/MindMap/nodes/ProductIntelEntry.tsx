@@ -206,6 +206,29 @@ export const ProductIntelEntry = memo(({ id, data: _data }: NodeProps<ProductInt
         }
     }, [phase, preFillStatus, preFillData]);
 
+    // Auto-skip if preFillData is already present from LandingView
+    useEffect(() => {
+        if (preFillData && phase === 'input' && !submitted) {
+            setPhase('done');
+            setSubmitted(true);
+            const nextConfig = STAGE_MAP['product_classification'];
+            if (nextConfig) {
+                // Short delay for visual flow
+                setTimeout(() => {
+                    submitStage(id, nextConfig);
+                    setTimeout(() => {
+                        fitView({
+                            nodes: [{ id: `stage-${nextConfig.id}` }],
+                            duration: 800,
+                            padding: 0.4,
+                            maxZoom: 0.8,
+                        });
+                    }, 100);
+                }, 400);
+            }
+        }
+    }, []);
+
     const handleAnalyse = useCallback(() => {
         if (!inputValue.trim()) return;
         runPreFill(inputValue.trim());

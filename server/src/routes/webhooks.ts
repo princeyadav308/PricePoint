@@ -19,10 +19,14 @@ function verifyDodoSignature(rawBody: string, signature: string | undefined, sec
         .update(rawBody)
         .digest('hex');
 
-    return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expected)
-    );
+    // Check buffer lengths match before timingSafeEqual to avoid crash
+    const sigBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    if (sigBuffer.length !== expectedBuffer.length) {
+        return false;
+    }
+
+    return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
 }
 
 export default async function (server: FastifyInstance) {
@@ -68,6 +72,17 @@ export default async function (server: FastifyInstance) {
                 }
 
                 // IMPORTANT: Transition the Report Status to 'Paid' securely on the backend
+                // Idempotency check: skip if already paid
+                const existingReport = await prisma.report.findUnique({
+                    where: { documentId },
+                    select: { paymentStatus: true }
+                });
+
+                if (existingReport?.paymentStatus === 'Paid') {
+                    server.log.info(`Report ${documentId} already marked as PAID, skipping duplicate webhook.`);
+                    return reply.send({ received: true, alreadyProcessed: true });
+                }
+
                 await prisma.report.update({
                     where: { documentId },
                     data: { paymentStatus: 'Paid' }

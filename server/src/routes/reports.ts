@@ -1,11 +1,45 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/db';
 import { supabase } from '../lib/supabase';
+import crypto from 'crypto';
 
-const DODO_API_BASE = process.env.DODO_API_URL || 'https://test.dodopayments.com';
+const DODO_API_BASE = process.env.DODO_API_URL;
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
+// Dodo product IDs from environment variables
+const DODO_PRODUCT_IDS = {
+    Investor: process.env.DODO_PRODUCT_ID_INVESTOR,
+    Professional: process.env.DODO_PRODUCT_ID_PROFESSIONAL,
+    Basic: process.env.DODO_PRODUCT_ID_BASIC,
+};
+
+// Generate cryptographically secure document ID
+function generateDocumentId(): string {
+    return crypto.randomBytes(32).toString('hex');
+}
+
 export default async function (server: FastifyInstance) {
+
+    // Helper: verify auth token and return user
+    async function verifyAuth(request: any): Promise<{ user: any } | { error: string }> {
+        const authHeader = request.headers.authorization;
+        
+        // Allow test bypass only in non-production with a secret token
+        if (process.env.NODE_ENV !== 'production' && authHeader === `Bearer ${process.env.TEST_BYPASS_SECRET || 'test-bypass'}`) {
+            return { user: { id: 'test-user-id', email: 'test_sprite@example.com' } };
+        }
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return { error: 'Missing or invalid Authorization header' };
+        }
+
+        const token = authHeader.split(' ')[1];
+        const { data, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !data.user) {
+            return { error: 'Unauthorized: Invalid token' };
+        }
+        return { user: data.user };
+    }
 
     // ──────────────────────────────────────────────────────────
     // 1. Initialize Report (Freezes state & gets Document ID)
@@ -13,25 +47,11 @@ export default async function (server: FastifyInstance) {
     server.post('/api/reports/initialize', async (request, reply) => {
         try {
             // VERIFY AUTH TOKEN FIRST (Production Hardening)
-            const authHeader = request.headers.authorization;
-            let user: any = null;
-
-            if (process.env.NODE_ENV !== 'production' && (!authHeader || authHeader.includes('test-bypass'))) {
-                // Allow TestSprite bypass only in non-production environments
-                user = { email: 'test_sprite@example.com' };
-            } else {
-                if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                    return reply.status(401).send({ error: 'Missing or invalid Authorization header' });
-                }
-
-                const token = authHeader.split(' ')[1];
-                const { data, error: authError } = await supabase.auth.getUser(token);
-                if (authError || !data.user) {
-                    server.log.warn(`Unauthorized initialization attempt: ${authError?.message}`);
-                    return reply.status(401).send({ error: 'Unauthorized: Invalid token' });
-                }
-                user = data.user;
+            const authResult = await verifyAuth(request);
+            if ('error' in authResult) {
+                return reply.status(401).send({ error: authResult.error });
             }
+            const user = authResult.user;
 
             const { sessionData, pricingResult, tier, intelligenceData } = request.body as any;
 
@@ -63,9 +83,10 @@ export default async function (server: FastifyInstance) {
                 }
             });
 
-            // Create the Pending Report record
+            // Create the Pending Report record with cryptographically random documentId
             const report = await prisma.report.create({
                 data: {
+                    documentId: generateDocumentId(),
                     sessionId: session.id,
                     tier: tier,
                     paymentStatus: 'Pending', // Will be marked 'Paid' by webhook or proactive polling
@@ -101,18 +122,16 @@ export default async function (server: FastifyInstance) {
             }
 
             // Map to the generated Dodo Payments Products
-            let dodoProductId = '';
-
-            if (report.tier === 'Investor') {
-                dodoProductId = 'pdt_0NZCXcODTdlz8fl8RizBV';
-            } else if (report.tier === 'Professional') {
-                dodoProductId = 'pdt_0NZCXcMlZ0lBdlm6Cw6Dm';
-            } else {
-                dodoProductId = 'pdt_0NZCXcL3mqpymcvIytXm7';
+            const dodoProductId = DODO_PRODUCT_IDS[report.tier as keyof typeof DODO_PRODUCT_IDS];
+            if (!dodoProductId) {
+                return reply.status(500).send({ error: `No Dodo product ID configured for tier: ${report.tier}` });
             }
 
             // Call Dodo Payments API natively
-            const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY || 'test_apikey';
+            const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY;
+            if (!dodoApiKey) {
+                return reply.status(500).send({ error: 'Dodo API key not configured' });
+            }
 
             // Build checkout body — only include billing/customer if frontend provides them.
             // Dodo's hosted checkout page will collect user details and auto-detect
@@ -173,6 +192,17 @@ export default async function (server: FastifyInstance) {
     // ──────────────────────────────────────────────────────────
     server.get('/api/reports/status/:documentId', async (request, reply) => {
         try {
+            // Optional auth: validate token if provided, but allow unauthenticated access for backwards compatibility
+            const authHeader = request.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                const token = authHeader.split(' ')[1];
+                const { error: authError } = await supabase.auth.getUser(token);
+                if (authError) {
+                    // Log but don't block - polling is read-only
+                    server.log.warn(`Polling request with invalid token: ${authError.message}`);
+                }
+            }
+
             const { documentId } = request.params as { documentId: string };
             const report = await prisma.report.findUnique({
                 where: { documentId },

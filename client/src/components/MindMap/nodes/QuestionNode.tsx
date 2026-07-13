@@ -109,7 +109,7 @@ const SliderField = ({
     }
 
     return (
-        <div className="space-y-3 nodrag">
+        <div className="space-y-3 nodrag nopan">
             <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-400">{min}{resolvedUnit}</span>
                 <span className={`text-sm font-bold px-3 py-1 rounded-full transition-all ${isTouched
@@ -171,15 +171,13 @@ const SliderField = ({
                             className="neu-slider absolute inset-0 w-full disabled:opacity-50"
                         />
                     </div>
-                    {isCurrency && (
-                        <button
-                            onClick={() => setCustomMode(true)}
-                            disabled={disabled}
-                            className="text-[10px] font-bold px-3 py-2 rounded-lg outer-shadow text-slate-500 hover:text-primary transition-all cursor-pointer whitespace-nowrap"
-                        >
-                            Custom
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setCustomMode(true)}
+                        disabled={disabled}
+                        className="text-[10px] font-bold px-3 py-2 rounded-lg outer-shadow text-slate-500 hover:text-primary transition-all cursor-pointer whitespace-nowrap"
+                    >
+                        Custom
+                    </button>
                 </div>
             )}
         </div>

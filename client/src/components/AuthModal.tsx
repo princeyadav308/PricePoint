@@ -36,8 +36,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                     }
                 });
                 if (error) throw error;
-                // Since this is a simple demo, we'll assume signup auto-logs in or prompts verification
+                // Show success message and close modal
                 setIsSignUpSuccess(true);
+                // Auto-close after 2 seconds
+                setTimeout(() => {
+                    onClose();
+                    onSuccess();
+                }, 2000);
             } else {
                 const { error } = await supabase.auth.signInWithPassword({
                     email,
@@ -200,7 +205,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                         {/* Toggle Mode */}
                         <div className="mt-8 text-center">
                             <button
-                                onClick={() => setIsSignUp(!isSignUp)}
+                                onClick={() => {
+                                    setIsSignUp(!isSignUp);
+                                    setError(null);
+                                    setIsSignUpSuccess(false);
+                                }}
                                 className="text-sm font-medium text-[#1E90FF] dark:text-[#55aaff] hover:underline transition-colors focus:outline-none"
                             >
                                 {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Create one'}
