@@ -11,7 +11,7 @@ import { Node, Edge, Position } from 'reactflow';
 const NODE_DIMS: Record<string, { width: number; height: number }> = {
     rootNode: { width: 200, height: 200 },
     journeyNode: { width: 320, height: 180 },
-    classificationNode: { width: 400, height: 850 },
+    classificationNode: { width: 400, height: 420 },
     resultNode: { width: 1100, height: 600 },
     stageNode: { width: 224, height: 64 },
 };
@@ -28,7 +28,12 @@ export const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
     nodes.forEach((node) => {
         // Use the real dimensions for each type — prevents overlap AND
         // stops the massive zoom-out caused by 520px-tall root slots.
-        const dims = NODE_DIMS[node.type ?? ''] ?? FALLBACK_DIMS;
+        let dims = { ...(NODE_DIMS[node.type ?? ''] ?? FALLBACK_DIMS) };
+        if (node.type === 'classificationNode') {
+            if (node.id === 'stage-market_intelligence') {
+                dims.height = 700;
+            }
+        }
         dagreGraph.setNode(node.id, { width: dims.width, height: dims.height });
     });
 
@@ -40,7 +45,12 @@ export const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 
     const layoutedNodes = nodes.map((node) => {
         const pos = dagreGraph.node(node.id);
-        const dims = NODE_DIMS[node.type ?? ''] ?? FALLBACK_DIMS;
+        let dims = { ...(NODE_DIMS[node.type ?? ''] ?? FALLBACK_DIMS) };
+        if (node.type === 'classificationNode') {
+            if (node.id === 'stage-market_intelligence') {
+                dims.height = 700;
+            }
+        }
         return {
             ...node,
             // Required so React Flow's built-in renderers (smoothstep)

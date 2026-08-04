@@ -600,16 +600,6 @@ export const MarketIntelligencePanel = memo(() => {
 
     return (
         <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-500 nodrag">
-            {/* Section Divider */}
-            <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-                <span className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center gap-1.5">
-                    <Sparkles size={10} />
-                    Market Intelligence
-                </span>
-                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-            </div>
-
             {/* Competitor Confirmation — shown before scraping */}
             {showConfirmation && (
                 <CompetitorConfirmationList

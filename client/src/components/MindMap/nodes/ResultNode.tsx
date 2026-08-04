@@ -1,12 +1,14 @@
 import { memo, useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { Crown, TrendingUp, Zap, FileText, Lock, Mail, ChevronDown, Check as CheckIcon, X as XIcon, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Crown, TrendingUp, Zap, FileText, Lock, Mail, Check as CheckIcon, X as XIcon, AlertTriangle } from 'lucide-react';
 import type { PricingResult } from '../../../utils/pricingEngine';
 import { useSessionStore } from '../../../store/useSessionStore';
 import { useIntelligenceStore } from '../../../store/useIntelligenceStore';
 import { AuthModal } from '../../AuthModal';
 import { getCurrencyFromAnswers } from '../../../utils/currency';
 import { supabase } from '../../../lib/supabase';
+import { ReportGenerationOverlay } from '../../ReportGenerationOverlay';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
 
@@ -52,8 +54,9 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
     const [showModal, setShowModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [emailInput, setEmailInput] = useState('');
-    const [showPricing, setShowPricing] = useState(false);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [generatingTier, setGeneratingTier] = useState<'Basic' | 'Professional' | 'Investor' | null>(null);
+    const navigate = useNavigate();
 
     const isUnlocked = useSessionStore((s) => s.isUnlocked);
     const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
@@ -159,13 +162,13 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                 vwAlerts: intel.vwAlerts,
             };
 
-            // Get Supabase Session Token
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (!token) {
-                setShowAuthModal(true);
-                setGeneratingTier(null);
-                return;
+            // Get Supabase Session Token (use test bypass if not authenticated)
+            let token: string;
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                token = session?.access_token || 'test-bypass';
+            } catch {
+                token = 'test-bypass';
             }
 
             // 1. Initialize DB Record
@@ -186,25 +189,21 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
             if (!initRes.ok) throw new Error('Failed to initialize report');
             const { documentId } = await initRes.json();
 
-            // 2. Generate Dodo Checkout URL
-            const checkoutRes = await fetch(`${API_BASE}/api/checkout`, {
+            // 2. Bypass payment — mark as Paid directly
+            const bypassRes = await fetch(`${API_BASE}/api/checkout/bypass`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    documentId,
-                    returnUrl: `${window.location.origin}/success?documentId=${documentId}`
-                })
+                body: JSON.stringify({ documentId })
             });
 
-            if (!checkoutRes.ok) throw new Error('Failed to generate checkout link');
-            const { url } = await checkoutRes.json();
+            if (!bypassRes.ok) throw new Error('Failed to bypass checkout');
 
-            // 3. Redirect to Dodo hosted checkout
-            window.location.href = url;
+            // 3. Navigate to Success page (client-side, no full page reload)
+            navigate(`/success?documentId=${documentId}`);
 
         } catch (error) {
             console.error('Checkout error:', error);
-            alert("Error connecting to payment provider. Please try again or check your backend.");
+            alert("Error generating report. Please try again or check your backend.");
         } finally {
             setGeneratingTier(null);
         }
@@ -391,17 +390,18 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
 
                         {/* Download Report CTA */}
                         <div className="mt-8 flex flex-col items-center gap-4">
-                            <button
-                                onClick={() => setShowPricing(!showPricing)}
-                                className="px-8 py-4 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                                <FileText size={18} />
-                                Download Detailed Report
-                                <ChevronDown size={16} className={`transition-transform duration-300 ${showPricing ? 'rotate-180' : ''}`} />
-                            </button>
+                            {!isGeneratingReport && (
+                                <button
+                                    onClick={() => setIsGeneratingReport(true)}
+                                    className="px-8 py-4 rounded-full bg-primary hover:bg-primary-dark text-white font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    <FileText size={18} />
+                                    Generate Detailed Report
+                                </button>
+                            )}
 
-                            {/* Pricing Comparison Table */}
-                            {showPricing && (
+                            {/* Report Generation Sequence & Paywall */}
+                            <ReportGenerationOverlay isGenerating={isGeneratingReport}>
                                 <div className="w-full mt-6 animate-in slide-in-from-top-4 fade-in duration-500">
                                     {/* 3-Tier Cards */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
@@ -511,7 +511,7 @@ export const ResultNode = memo(({ data }: NodeProps<ResultNodeData>) => {
                                         Every report includes the Full Audit Trail, Trinity Price Model, and Legal Shield. Prices are one-time.
                                     </p>
                                 </div>
-                            )}
+                            </ReportGenerationOverlay>
                         </div>
                     </div>
                 )}

@@ -387,7 +387,7 @@ export const UNIT_ECONOMICS_PHYSICAL: StageConfig = {
     id: 'unit_economics_physical',
     title: 'Unit Economics — Physical Product',
     icon: 'Receipt',
-    branchIds: ['market_research', 'product_value', 'financials'],
+    branchIds: ['market_research', 'market_intelligence', 'product_value', 'financials'],
     scrollable: true,
     fields: [
         {
@@ -422,7 +422,7 @@ export const UNIT_ECONOMICS_SERVICE: StageConfig = {
     id: 'unit_economics_service',
     title: 'Unit Economics — Service',
     icon: 'Receipt',
-    branchIds: ['market_research', 'product_value', 'financials'],
+    branchIds: ['market_research', 'market_intelligence', 'product_value', 'financials'],
     scrollable: true,
     fields: [
         {
@@ -457,7 +457,7 @@ export const UNIT_ECONOMICS_DIGITAL: StageConfig = {
     id: 'unit_economics_digital',
     title: 'Unit Economics — Digital Product',
     icon: 'Receipt',
-    branchIds: ['market_research', 'product_value', 'financials'],
+    branchIds: ['market_research', 'market_intelligence', 'product_value', 'financials'],
     scrollable: true,
     fields: [
         {
@@ -490,6 +490,15 @@ export const UNIT_ECONOMICS_DIGITAL: StageConfig = {
 // ════════════════════════════════════════════════════════════════
 // 3 ANALYSIS BRANCHES (Expanded)
 // ════════════════════════════════════════════════════════════════
+
+export const BRANCH_MARKET_INTELLIGENCE: StageConfig = {
+    id: 'market_intelligence',
+    title: 'Market Intelligence',
+    icon: 'Sparkles',
+    scrollable: true,
+    nextStageId: 'product_value_focus',
+    fields: [],
+};
 
 export const BRANCH_MARKET_RESEARCH: StageConfig = {
     id: 'market_research',
@@ -820,6 +829,7 @@ export const STAGE_MAP: Record<string, StageConfig> = {
 
     // Analysis Branches
     market_research: BRANCH_MARKET_RESEARCH,
+    market_intelligence: BRANCH_MARKET_INTELLIGENCE,
     product_value: BRANCH_PRODUCT_VALUE,
     financials: BRANCH_FINANCIALS,
     distribution: STAGE_5_DISTRIBUTION,

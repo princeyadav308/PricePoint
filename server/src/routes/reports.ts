@@ -188,6 +188,44 @@ export default async function (server: FastifyInstance) {
     });
 
     // ──────────────────────────────────────────────────────────
+    // 2b. Payment Bypass (Skips payment gateway, marks as Paid directly)
+    // ──────────────────────────────────────────────────────────
+    server.post('/api/checkout/bypass', async (request, reply) => {
+        try {
+            const { documentId } = request.body as any;
+
+            if (!documentId) {
+                return reply.status(400).send({ error: 'Missing documentId' });
+            }
+
+            const report = await prisma.report.findUnique({ where: { documentId } });
+            if (!report) {
+                return reply.status(404).send({ error: 'Report not found' });
+            }
+
+            // Mark the report as Paid directly — bypass payment gateway
+            await prisma.report.update({
+                where: { documentId },
+                data: {
+                    paymentStatus: 'Paid',
+                    amountPaid: 0,
+                    currency: 'USD',
+                    stripeCheckoutId: `bypass_${Date.now()}`
+                }
+            });
+
+            server.log.info(`⚡ Report ${documentId} marked as PAID via bypass (no payment gateway).`);
+
+            const returnUrl = `${APP_URL}/success?documentId=${documentId}`;
+            return { url: returnUrl };
+
+        } catch (error) {
+            server.log.error(error);
+            return reply.status(500).send({ error: 'Failed to bypass checkout' });
+        }
+    });
+
+    // ──────────────────────────────────────────────────────────
     // 3. Status Polling Endpoint (Used by Success.tsx)
     // ──────────────────────────────────────────────────────────
     server.get('/api/reports/status/:documentId', async (request, reply) => {

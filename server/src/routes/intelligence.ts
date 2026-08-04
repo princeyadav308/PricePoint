@@ -4,6 +4,8 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { fetchWithFallback } from '../utils/fetchWithFallback';
 import vatRates from '../data/vatRates.json';
 import Anthropic from '@anthropic-ai/sdk';
+import { logger } from '../utils/logger';
+import { crawlUrl, searchGoogle } from '../utils/crawl4ai';
 
 
 // ============================================================
@@ -216,65 +218,22 @@ export default async function intelligenceRoutes(server: FastifyInstance) {
             return reply.send(fallback);
         }
 
-        const scrapingdogKey = process.env.SCRAPINGDOG_API_KEY;
-        console.log(`[Prefill] URL: ${url} | scrapingdogKey: ${scrapingdogKey ? `SET (${scrapingdogKey.length} chars)` : 'MISSING'}`);
+        logger.info(`[Prefill] Processing URL: ${url}`);
 
-        // ── Helper: scrape HTML from a URL (multi-tier strategy) ──
+        // ── Helper: scrape HTML from a URL (Crawl4AI with direct-fetch fallback) ──
         async function scrapeHtml(targetUrl: string): Promise<string> {
-            // Tier 1: Try Scrapingdog if key is available
-            if (scrapingdogKey) {
-                try {
-                    console.log('[Prefill] Trying Scrapingdog for: ' + targetUrl);
-                    const scrapeResp = await axios.get('https://api.scrapingdog.com/scrape', {
-                        params: {
-                            api_key: scrapingdogKey,
-                            url: targetUrl,
-                            dynamic: 'false',
-                        },
-                        timeout: 20000,
-                    });
+            logger.info(`[Prefill] Crawling via Crawl4AI: ${targetUrl}`);
+            const result = await crawlUrl(targetUrl);
 
-                    // Check if Scrapingdog returned an error response
-                    const respData = scrapeResp.data;
-                    if (typeof respData === 'object' && respData.success === false) {
-                        throw new Error(`Scrapingdog error: ${respData.message || 'limit reached'}`);
-                    }
-
-                    const html = typeof respData === 'string'
-                        ? respData.substring(0, 15000)
-                        : JSON.stringify(respData).substring(0, 15000);
-                    console.log('[Prefill] Scrapingdog success. HTML length: ' + html.length);
-                    return html;
-                } catch (sdError: any) {
-                    console.warn('[Prefill] Scrapingdog failed:', sdError.message || 'Unknown error');
-                    // Fall through to Tier 2
-                }
+            if (result.success && result.html) {
+                const html = result.html.substring(0, 15000);
+                logger.info(`[Prefill] Crawl4AI success. HTML length: ${html.length}`);
+                return html;
             }
 
-            // Tier 2: Direct fetch (works for most public pages that don't require JS)
-            console.log('[Prefill] Trying direct fetch for: ' + targetUrl);
-            try {
-                const fetchResp = await fetch(targetUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                    },
-                    signal: AbortSignal.timeout(15000),
-                });
-
-                if (!fetchResp.ok) {
-                    throw new Error(`Direct fetch failed: ${fetchResp.status} ${fetchResp.statusText}`);
-                }
-
-                const html = await fetchResp.text();
-                const trimmed = html.substring(0, 15000);
-                console.log('[Prefill] Direct fetch success. HTML length: ' + trimmed.length);
-                return trimmed;
-            } catch (fetchError: any) {
-                console.warn('[Prefill] Direct fetch failed:', fetchError.message || 'Unknown error');
-                throw new Error(`All fetch methods failed for ${targetUrl}`);
-            }
+            // crawlUrl already includes a direct-fetch fallback internally,
+            // so if we get here, both Crawl4AI and direct fetch failed
+            throw new Error(`All fetch methods failed for ${targetUrl}`);
         }
 
         // ── Helper: send HTML to Claude for extraction ──
@@ -386,14 +345,13 @@ ${htmlContent}`
             });
         }
 
-        const apifyToken = process.env.APIFY_API_TOKEN;
         const fallback = {
             success: false as const,
             fallback: true as const,
             message: 'Competitor discovery unavailable — add competitors manually.',
         };
 
-        if (!apifyToken || !keyword) {
+        if (!keyword) {
             return reply.send(fallback);
         }
 
@@ -402,34 +360,21 @@ ${htmlContent}`
                 ? geography : '';
             const query = `${keyword} ${category} pricing competitors ${geoModifier}`.trim();
 
-            const resp = await axios.post(
-                'https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items',
-                {
-                    queries: query,
-                    maxPagesPerQuery: 1,
-                    resultsPerPage: 10,
-                },
-                {
-                    params: { token: apifyToken },
-                    headers: { 'Content-Type': 'application/json' },
-                    timeout: 30000, // Apify can be slow
-                }
-            );
-
-            const organicResults = resp.data?.[0]?.organicResults || resp.data || [];
+            // Use Crawl4AI to crawl Google search results (replaces Apify)
+            const searchResults = await searchGoogle(query, 10);
 
             // Filter out noise (Wikipedia, Reddit, news, user's own domain)
             const EXCLUDE_DOMAINS = ['wikipedia.org', 'reddit.com', 'youtube.com', 'news.', 'blog.'];
-            const competitors = organicResults
-                .filter((r: any) => {
-                    const url = (r.url || r.link || '').toLowerCase();
+            const competitors = searchResults
+                .filter((r) => {
+                    const url = (r.url || '').toLowerCase();
                     return url && !EXCLUDE_DOMAINS.some(d => url.includes(d));
                 })
                 .slice(0, perms.maxCompetitors)
-                .map((r: any) => ({
-                    name: r.title || extractRootDomain(r.url || r.link),
-                    url: r.url || r.link,
-                    snippet: r.description || r.snippet || '',
+                .map((r) => ({
+                    name: r.title || extractRootDomain(r.url),
+                    url: r.url,
+                    snippet: r.snippet || '',
                     priceFound: null,
                 }));
 
@@ -465,8 +410,7 @@ ${htmlContent}`
             });
         }
 
-        const scrapingdogKey = process.env.SCRAPINGDOG_API_KEY;
-        if (!scrapingdogKey || !urls || urls.length === 0) {
+        if (!urls || urls.length === 0) {
             return reply.send({
                 success: false, fallback: true,
                 message: 'Price scraping unavailable — enter competitor prices manually.',
@@ -488,45 +432,24 @@ ${htmlContent}`
             });
         }
 
-        // Scrape + extract in parallel (per URL)
+        // Scrape + extract in parallel (per URL) using Crawl4AI
         const results = await Promise.all(
             cappedUrls.map(async (url) => {
                 return fetchWithFallback(async () => {
-                    // Step 1: Scrape (Scrapingdog → direct fetch fallback)
+                    // Step 1: Scrape via Crawl4AI (includes direct-fetch fallback)
+                    const crawlResult = await crawlUrl(url);
+
                     let textContent = '';
-                    let scraped = false;
-
-                    if (scrapingdogKey) {
-                        try {
-                            const scrapeResp = await axios.get('https://api.scrapingdog.com/scrape', {
-                                params: { api_key: scrapingdogKey, url, dynamic: 'false' },
-                                timeout: 20000,
-                            });
-                            const respData = scrapeResp.data;
-                            if (typeof respData === 'object' && respData.success === false) {
-                                throw new Error(`Scrapingdog error: ${respData.message}`);
-                            }
-                            textContent = typeof respData === 'string' ? respData : JSON.stringify(respData);
-                            scraped = true;
-                        } catch (sdErr: any) {
-                            console.warn(`[ScrapePrice] Scrapingdog failed for ${url}:`, sdErr.message);
-                        }
+                    if (crawlResult.success) {
+                        // Prefer markdown (cleaner for LLM extraction), fall back to HTML
+                        textContent = crawlResult.markdown || crawlResult.html || '';
                     }
 
-                    if (!scraped) {
-                        // Fallback: direct fetch
-                        const fetchResp = await fetch(url, {
-                            headers: {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                            },
-                            signal: AbortSignal.timeout(15000),
-                        });
-                        if (!fetchResp.ok) throw new Error(`Direct fetch failed: ${fetchResp.status}`);
-                        textContent = await fetchResp.text();
+                    if (!textContent) {
+                        throw new Error(`Failed to scrape content from ${url}`);
                     }
 
-                    // Strip HTML tags, keep text
+                    // Strip HTML tags if we got HTML, keep text
                     textContent = textContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').substring(0, 12000);
 
                     // Step 2: Claude extraction

@@ -309,8 +309,9 @@ function ReportCard({ report }: { report: UserReport }) {
                 executive_summary: { headline: 'Report', summary: 'Report data loaded from archive.', pricing_verdict: {} },
                 next_steps: ['Review pricing strategy']
             };
+            const validationReport = genData.validationReport || null;
 
-            // 3. Generate PDF via Puppeteer endpoint
+            // 3. Generate PDF via Puppeteer endpoint — pass validation metadata for provenance dots
             const pdfRes = await fetch(`${API_BASE}/api/generate-pdf`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -318,7 +319,8 @@ function ReportCard({ report }: { report: UserReport }) {
                     claudeData,
                     pricingResult: data.report.sessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } },
                     sessionData: data.report.sessionData || {},
-                    tier: report.tier
+                    tier: report.tier,
+                    validationReport
                 })
             });
             const blob = await pdfRes.blob();

@@ -114,12 +114,36 @@ You are generating a structured, high-density pricing intelligence report for Pr
 
 CRITICAL RULES:
 1. Every number you cite must trace back to the provided session data or be clearly labeled as a market benchmark estimate. Focus closely on the Cost Base and Value Multiplier.
+1a. COST DATA HONESTY: If Total Unit Cost is $0.00 or COST DATA STATUS says "NOT PROVIDED", you MUST NOT invent cost figures, COGS breakdowns, or margin percentages. State explicitly that cost data was not provided and that margin figures require unit economics input. This is non-negotiable — the validator will strip any invented cost numbers.
+1b. BRAND NAME ISOLATION: You MUST NOT use the product name to look up or invent real-world market data, competitor prices, TAM/SAM/SOM figures, or brand information from your training data. Treat the product name as an opaque label. All competitive data must come from the AUTO-INTELLIGENCE DATA section only. You MAY use generic stylistic analogies ("priced similarly to how premium electronics brands position mid-tier SKUs") but NEVER attribute a specific figure to a named real company unless that data appears in the AUTO-INTELLIGENCE DATA section. The validator will strip any named-company competitive tables that lack backing intelligence data.
 2. Never recommend a price outside the Survival—Premium band unless explicitly flagged as an outlier scenario.
 3. Write as a trusted advisor: "The data indicates...", "Our analysis suggests...", "Investors will ask...". Avoid generic AI filler.
 4. You must return ONLY a valid JSON object with exactly these top-level keys (depending on tier):
    executive_summary, path_to_profitability, leakage_audit, market_intelligence, competitive_benchmarking, pricing_strategy, unit_economics, risk_matrix, investor_narrative, implementation_roadmap.
 5. Each key must be present even if data is limited. Never return prose outside the JSON.
-6. Never truncate the JSON. If you are running low on space, summarize — do not cut closing braces. Ensure the output parses correctly 100% of the time.`;
+6. Never truncate the JSON. If you are running low on space, summarize — do not cut closing braces. Ensure the output parses correctly 100% of the time.
+
+ENGINE-COMPUTED VALUES — PLACEHOLDER RULE:
+The following values are computed by the PricePoint engine and are ground truth. When referencing them in your narrative text, use the exact placeholder tokens below — do NOT write the literal number. The rendering system will substitute the correct value.
+
+Available placeholders:
+  {{SURVIVAL_PRICE}}    — Entry/floor price
+  {{BEST_PRICE}}        — Optimal/recommended price
+  {{PREMIUM_PRICE}}     — Premium/ceiling price
+  {{PMC}}               — Point of Marginal Cheapness
+  {{OPP}}               — Optimal Price Point
+  {{IPP}}               — Indifference Price Point
+  {{PME}}               — Point of Marginal Expensiveness
+  {{COST_BASE}}         — Cost-plus base price
+  {{TOTAL_UNIT_COST}}   — Total unit cost
+  {{VALUE_MULTIPLIER}}  — Value multiplier
+  {{GROSS_MARGIN}}      — Gross margin percentage
+  {{CURRENCY}}          — Currency symbol
+
+Example correct usage: "The optimal price of {{BEST_PRICE}} sits comfortably within the Van Westendorp acceptable range of {{PMC}} to {{PME}}."
+Example INCORRECT usage: "The optimal price of $510.00 sits comfortably within the range of $225 to $910."
+
+You MAY write literal numbers for values you compute yourself (e.g., revenue projections, LTV estimates, percentage differences) — but these will be validated against engine truth and corrected if they contradict engine outputs.`;
 
     // Journey-specific lens
     const journeyLens = journeyType === 'established_seller' || journeyType === 'price_audit'
@@ -405,17 +429,30 @@ Van Westendorp Outputs:
   - Point of Marginal Cheapness (PMC): ${cs}${vw.pmc ?? vw.floor ?? 0} ${currencyCode}
   - Optimal Price Point (OPP): ${cs}${vw.opp ?? 0} ${currencyCode}
   - Indifference Price Point (IPP): ${cs}${vw.ipp ?? 0} ${currencyCode}
-  - Point of Marginal Expensiveness (PME): ${cs}${vw.pme ?? vw.ceiling ?? 0} ${currencyCode}
+  - Point of Marginal Expensiveness (PME): ${cs}${vw.pme ?? vw.ceiling ?? 0} ${currencyCode} (Van Westendorp Price Sensitivity Ceiling)
   - Acceptable Price Range: ${cs}${vw.pmc ?? vw.floor ?? 0} — ${cs}${vw.pme ?? vw.ceiling ?? 0} ${currencyCode}
 
 Cost-Plus Base: ${cs}${pricingResult?.analysis?.costPlusBase ?? 0} ${currencyCode}
 Value Multiplier: ${pricingResult?.analysis?.valueMultiplier ?? 1}x
 Total Unit Cost: ${cs}${totalUECost > 0 ? totalUECost : (pricingResult?.analysis?.totalUnitCost ?? 0)} ${currencyCode}
+Premium Price (Value-Adjusted Cap): ${cs}${pricingResult?.premium ?? 0} (derived from Cost-Plus Base × Value Multiplier, distinct from PME)
+
+COST DATA STATUS: ${totalUECost > 0 ? 'PROVIDED — user supplied unit economics data. Margin and profit calculations are valid.' : 'NOT PROVIDED — user did not enter cost data. Total Unit Cost is $0.00. You MUST NOT invent, estimate, or assume any COGS, unit cost, or gross margin figures. State explicitly: "Cost data was not provided — margin figures require unit economics input." This is non-negotiable — the validator will strip any invented cost numbers.'}
 
 ═══════════════════════════════════════════════
 APPLIED MARKET MODIFIERS:
 ═══════════════════════════════════════════════
 ${JSON.stringify(appliedModifiers || [], null, 2)}
+
+═══════════════════════════════════════════════
+PRODUCT NAME ISOLATION:
+═══════════════════════════════════════════════
+The product name "${sd?.answers?.projectName?.value || sd?.answers?.product_name?.value || 'Unknown'}" is a user-assigned label — it could be a codename, a test entry, or share a name with a famous brand. You MUST NOT:
+- Infer anything about the product from its name matching a known company/brand
+- Invent competitor names, prices, TAM/SAM/SOM figures, or market share from training data
+- Reference specific real companies with fabricated financial figures
+If no competitive data exists in the AUTO-INTELLIGENCE DATA section below, write: "No verified competitor data was provided. Competitive analysis requires market intelligence input."
+The validator will strip any named-company competitive tables that lack backing intelligence data.
 
 ═══════════════════════════════════════════════
 FULL SESSION DATA (All Questions & Answers):

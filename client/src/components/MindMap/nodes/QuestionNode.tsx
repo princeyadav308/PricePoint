@@ -1000,8 +1000,8 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
                     ))}
                 </div>
 
-                {/* ── Market Intelligence Panel (market_research stage) ── */}
-                {config.id === 'market_research' && (
+                {/* ── Market Intelligence Panel (market_intelligence stage) ── */}
+                {config.id === 'market_intelligence' && (
                     <MarketIntelligencePanel />
                 )}
 

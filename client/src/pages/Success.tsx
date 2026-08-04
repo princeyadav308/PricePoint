@@ -12,7 +12,7 @@ export default function Success() {
 
     const [status, setStatus] = useState<'polling' | 'verified' | 'generating' | 'ready' | 'error'>('polling');
     const [pollCount, setPollCount] = useState(0);
-    const [reportPayload, setReportPayload] = useState<{ claudeData: any } | null>(null);
+    const [reportPayload, setReportPayload] = useState<{ claudeData: any; validationReport?: any } | null>(null);
     const [savedTier, setSavedTier] = useState<string>('Basic');
     const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -136,6 +136,7 @@ export default function Success() {
                         executive_summary: { headline: 'Report Pending', summary: 'AI analysis temporarily unavailable. Please retry once credits are loaded.', pricing_verdict: {} },
                         next_steps: ['Retry report generation']
                     },
+                    validationReport: data.validationReport || null,
                 });
 
                 setStatus('ready');
@@ -270,7 +271,8 @@ export default function Success() {
                                             claudeData: reportPayload.claudeData,
                                             pricingResult: savedSessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } },
                                             sessionData: savedSessionData || {},
-                                            tier: savedTier
+                                            tier: savedTier,
+                                            validationReport: reportPayload.validationReport || null
                                         })
                                     });
                                     const blob = await res.blob();

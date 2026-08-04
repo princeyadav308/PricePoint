@@ -607,7 +607,7 @@ export function generateHTMLTemplate(payload: any): string {
     exhibitCounter = 0;
     sourceReferences = [];
 
-    const { claudeData, pricingResult, sessionData, tier } = payload;
+    const { claudeData, pricingResult, sessionData, tier, validationReport } = payload;
 
     const d = claudeData || {};
     const pr = pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } };
@@ -644,6 +644,18 @@ export function generateHTMLTemplate(payload: any): string {
     const valueMult = num(pr.analysis?.valueMultiplier, 1);
     const totalUnitCost = num(pr.analysis?.totalUnitCost);
     const margin = recommended > 0 && costBase > 0 ? ((recommended - costBase) / recommended * 100) : 0;
+
+    // Validation report for provenance dots and data gating
+    const vr = validationReport || { provenanceMap: {}, hasCostData: totalUnitCost > 0, hasCompetitorData: false, hasIntelligenceData: false };
+
+    // Provenance dot helper — shows data source classification in exhibit headers
+    function provDot(section: string): string {
+        const prov = vr.provenanceMap?.[section];
+        if (!prov || prov === 'verified') return '<span class="prov-dot prov-verified" title="Verified — calculated from your inputs"></span>';
+        if (prov === 'ai_estimated') return '<span class="prov-dot prov-estimated" title="AI-Estimated — inferred by AI analysis"></span>';
+        if (prov === 'illustrative') return '<span class="prov-dot prov-estimated" title="Illustrative — AI estimate, verify independently"></span>';
+        return '<span class="prov-dot prov-unavailable" title="Unavailable — requires additional input"></span>';
+    }
 
     // Page wrapper helpers
     const pageStart = (section: string) => `
@@ -870,10 +882,12 @@ export function generateHTMLTemplate(payload: any): string {
         .stat-value {
             font-size: 28px; font-weight: 700; color: var(--voya-teal);
             line-height: 1.1; margin-bottom: 4px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .stat-label {
             font-size: 10px; color: var(--voya-gray); text-transform: uppercase;
             font-weight: 600; letter-spacing: 0.4px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
         /* ── Pull Quote ── */
@@ -937,15 +951,30 @@ export function generateHTMLTemplate(payload: any): string {
         .kpi-row {
             display: flex; gap: 12px; margin: 16px 0;
             page-break-inside: avoid; break-inside: avoid;
+            flex-wrap: wrap;
         }
         .kpi-item {
-            flex: 1; text-align: center; padding: 14px 8px;
+            flex: 1 1 120px; text-align: center; padding: 14px 8px;
             background: var(--voya-light-gray); border-radius: 6px;
             border: 1px solid var(--voya-border);
             page-break-inside: avoid; break-inside: avoid;
+            min-width: 0;
+            max-width: 180px;
         }
-        .kpi-value { font-size: 20px; font-weight: 700; color: var(--voya-teal); }
-        .kpi-label { font-size: 9px; color: var(--voya-gray); text-transform: uppercase; font-weight: 600; margin-top: 2px; letter-spacing: 0.3px; }
+        .kpi-value {
+            font-size: 20px; font-weight: 700; color: var(--voya-teal);
+            overflow: visible; text-overflow: clip;
+            word-wrap: break-word;
+            line-height: 1.2;
+            min-height: 24px;
+        }
+        .kpi-label {
+            font-size: 9px; color: var(--voya-gray); text-transform: uppercase;
+            font-weight: 600; margin-top: 2px; letter-spacing: 0.3px;
+            overflow: visible; text-overflow: clip;
+            word-wrap: break-word;
+            line-height: 1.2;
+        }
 
         /* ── Phase Cards (roadmap) ── */
         .phase-card {
@@ -1001,6 +1030,17 @@ export function generateHTMLTemplate(payload: any): string {
         .badge-red { background: ${V.red}15; color: ${V.red}; }
         ul { margin: 0; padding-left: 18px; }
         li { margin-bottom: 5px; font-size: 14px; }
+
+        /* ── Provenance Dots ── */
+        .prov-dot { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:middle; }
+        .prov-verified { background: ${V.green}; }
+        .prov-estimated { background: #F59E0B; }
+        .prov-unavailable { background: ${V.red}; }
+        .data-source-legend { background: #FAFAFA; border-left: 4px solid ${V.teal}; padding: 16px 20px; margin: 20px 0; border-radius: 4px; }
+        .data-source-legend .legend-row { display: flex; gap: 24px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+        .data-not-provided { background: ${V.orange}10; border: 1px solid ${V.orange}40; border-radius: 6px; padding: 14px 18px; margin-bottom: 16px; }
+        .data-not-provided .dnp-label { font-size: 13px; font-weight: 700; color: ${V.orange}; margin-bottom: 4px; }
+        .data-not-provided p { margin: 4px 0 0 0; font-size: 12px; color: ${V.dark}; line-height: 1.5; }
 
         /* ── Table of Contents ── */
         .toc-page .toc-grid { display: flex; gap: 32px; }
@@ -1141,11 +1181,21 @@ export function generateHTMLTemplate(payload: any): string {
                     <div class="price-sub">Recommended</div>
                 </div>
                 <div class="cover-price-card">
-                    <div class="price-label">Premium Anchor</div>
-                    <div class="price-value">${cs}${fmtK(premium)}</div>
-                    <div class="price-sub">Ceiling</div>
+                    <div class="price-label">Premium $≈</div>
+                    <div class="price-value">${cs}${fmt(premium)}</div>
+                    <div class="price-sub">Value-Based Cap</div>
                 </div>
             </div>
+            ${pr.analysis?.vanWestendorp?.pme ? `
+            <div style="text-align:center;margin-top:8px;">
+                <span style="font-size:9px;color:${V.gray};">
+                    <strong>Premium vs VW Ceiling:</strong> Your value-based cap (${cs}${fmt(premium)}) may differ from the Van Westendorp ceiling (${cs}${fmt(num(pr.analysis.vanWestendorp.pme))}) — the price above which consumers perceive the product as too expensive. This difference reveals pricing headroom.
+                </span>
+            </div>` : `
+            <p style="text-align:center;font-size:9px;color:${V.gray};margin:8px 0 0 0;">
+                <strong>Premium vs VW Ceiling:</strong> Premium Anchor (${cs}${fmt(premium)}) is your value-adjusted maximum (cost-plus × multiplier). PME/VW Ceiling is where consumers see the product as too expensive. These are distinct metrics.<br>
+                Tip: If Premium > PME, consider aggressive upside. If Premium < PME, you have pricing runway.
+            </p>`}
 
             ${!isBasic && meta.report_thesis ? `
             <div class="callout teal" style="margin-bottom: 24px;">
@@ -1308,6 +1358,35 @@ export function generateHTMLTemplate(payload: any): string {
     ${pageEnd}
 
     <!-- ═══════════════════════════════════════════════
+         02b · DATA SOURCE LEGEND (All Tiers)
+         ═══════════════════════════════════════════════ -->
+    ${pageStart('Data Sources')}
+        <div class="data-source-legend">
+            <div style="font-size: 12px; font-weight: 700; color: ${V.dark}; letter-spacing: 0.5px; text-transform: uppercase;">Data Source Classification</div>
+            <p style="font-size: 11px; color: ${V.gray}; margin: 4px 0 10px 0;">
+                This report contains data from multiple sources. Each section is classified by its provenance to help you distinguish calculated facts from AI-generated analysis.
+            </p>
+            <div class="legend-row">
+                <div style="font-size: 12px;"><span class="prov-dot prov-verified"></span> <strong>Verified</strong> — calculated from your inputs</div>
+                <div style="font-size: 12px;"><span class="prov-dot prov-estimated"></span> <strong>AI-Estimated</strong> — inferred by AI analysis</div>
+                <div style="font-size: 12px;"><span class="prov-dot prov-unavailable"></span> <strong>Unavailable</strong> — requires additional input</div>
+            </div>
+        </div>
+
+        ${!vr.hasCostData ? `
+        <div class="data-not-provided">
+            <div class="dnp-label">⚠ Unit Economics Data Not Provided</div>
+            <p>You did not provide cost data. Sections requiring unit cost input (gross margin, breakeven analysis, margin erosion) are marked as <strong>Unavailable</strong>. Re-run your analysis with cost data to unlock these sections.</p>
+        </div>` : ''}
+
+        ${!vr.hasCompetitorData ? `
+        <div class="data-not-provided">
+            <div class="dnp-label">⚠ Competitor Intelligence Not Available</div>
+            <p>No verified competitor data was scraped. Competitive benchmark tables show industry-typical positioning tiers rather than specific company data. Enable competitor discovery to populate with real market data.</p>
+        </div>` : ''}
+    ${pageEnd}
+
+    <!-- ═══════════════════════════════════════════════
          03 · INVESTMENT THESIS (Investor Only — 2 pages)
          ═══════════════════════════════════════════════ -->
     ${isInvestor && txt(d.investment_thesis) ? `
@@ -1358,7 +1437,7 @@ export function generateHTMLTemplate(payload: any): string {
                 <div class="stat-card-icon">${svgIcon('crown', V.orange)}</div>
                 <div class="stat-card-body">
                     <div class="stat-value">${cs}${fmt(premium)}</div>
-                    <div class="stat-label">Premium Anchor</div>
+                    <div class="stat-label">Premium (Value-Based)</div>
                 </div>
             </div>
         </div>
@@ -1460,8 +1539,14 @@ export function generateHTMLTemplate(payload: any): string {
          06 · COST BREAKDOWN + GROSS MARGIN (All Tiers)
          ═══════════════════════════════════════════════ -->
     ${pageStart('Cost Breakdown')}
-        <h2 class="section-title">Cost Breakdown &amp; Gross Margin</h2>
-        <p class="section-subtitle">Unit cost structure and margin analysis</p>
+        <h2 class="section-title">${provDot('cost_breakdown')} Cost Breakdown &amp; Gross Margin</h2>
+        <p class="section-subtitle">${totalUnitCost > 0 ? 'Unit cost structure and margin analysis' : 'Unit cost data not provided — margin calculations require cost input'}</p>
+
+        ${totalUnitCost === 0 ? `
+        <div class="data-not-provided">
+            <div class="dnp-label">⚠ Cost Data Not Provided</div>
+            <p>You did not provide unit economics data. The margin and profit figures in this section require cost input. Re-run your analysis with cost data to unlock accurate margin analysis.</p>
+        </div>` : ''}
 
         <div class="voya-two-col">
             <div>
@@ -1469,7 +1554,7 @@ export function generateHTMLTemplate(payload: any): string {
                     <div class="exhibit-header">${nextExhibit('Unit Cost Structure')}</div>
                     <div class="kpi-row">
                         <div class="kpi-item">
-                            <div class="kpi-value">${cs}${fmt(totalUnitCost)}</div>
+                            <div class="kpi-value">${totalUnitCost > 0 ? `${cs}${fmt(totalUnitCost)}` : 'Not provided'}</div>
                             <div class="kpi-label">Total Unit Cost</div>
                         </div>
                         <div class="kpi-item">
@@ -1483,7 +1568,7 @@ export function generateHTMLTemplate(payload: any): string {
                             <div class="kpi-label">Value Multiplier</div>
                         </div>
                         <div class="kpi-item">
-                            <div class="kpi-value">${margin.toFixed(1)}%</div>
+                            <div class="kpi-value">${totalUnitCost > 0 ? `${margin.toFixed(1)}%` : 'N/A'}</div>
                             <div class="kpi-label">Gross Margin</div>
                         </div>
                     </div>
@@ -1639,11 +1724,12 @@ export function generateHTMLTemplate(payload: any): string {
     <!-- ═══════════════════════════════════════════════
          FOUNDER + INVESTOR: Competitive Benchmark Table
          ═══════════════════════════════════════════════ -->
-    ${!isBasic && d.competitive_positioning?.benchmark_table && arr(d.competitive_positioning.benchmark_table).length > 0 ? `
+    ${!isBasic ? `
     ${pageStart('Competitive Benchmark')}
-        <h2 class="section-title">Competitive Benchmark</h2>
+        <h2 class="section-title">${provDot('competitive_benchmark')} Competitive Benchmark</h2>
         <p class="section-subtitle">How your pricing compares to key competitors in the market</p>
 
+        ${d.competitive_positioning?.benchmark_table && arr(d.competitive_positioning.benchmark_table).length > 0 && !d.competitive_positioning?._stripped ? `
         <div class="exhibit-box">
             <div class="exhibit-header">${nextExhibit('Competitive Benchmark')}</div>
 
@@ -1677,8 +1763,30 @@ export function generateHTMLTemplate(payload: any): string {
             <p class="source-note">Competitive intelligence based on user-provided data and AI analysis</p>
             ${trackSource('Competitive intelligence based on user-provided data and AI analysis')}
         </div>
+        ` : `
+        <div class="data-not-provided">
+            <div class="dnp-label">⚠ No Verified Competitor Data</div>
+            <p>Competitor pricing data was not provided or scraped. The positioning framework below uses industry-typical price bands derived from your Van Westendorp analysis, not specific company data. Enable competitor discovery to populate with real market data.</p>
+        </div>
+        <div class="exhibit-box">
+            <div class="exhibit-header">${nextExhibit('Positioning Tier Framework')}</div>
+            <table class="voya-table">
+                <thead><tr>
+                    <th>Positioning Tier</th><th>Typical Price Range</th><th>Description</th>
+                </tr></thead>
+                <tbody>
+                    <tr><td>Budget</td><td>Below ${cs}${fmt(num(pr.analysis?.vanWestendorp?.pmc ?? pr.analysis?.vanWestendorp?.floor))}</td><td>Price-driven segment, minimal differentiation</td></tr>
+                    <tr><td>Value</td><td>${cs}${fmt(num(pr.analysis?.vanWestendorp?.pmc ?? pr.analysis?.vanWestendorp?.floor))} – ${cs}${fmt(num(pr.analysis?.vanWestendorp?.opp))}</td><td>Balance of price and perceived value</td></tr>
+                    <tr class="highlight-row"><td><strong>Premium</strong></td><td><strong>${cs}${fmt(num(pr.analysis?.vanWestendorp?.opp))} – ${cs}${fmt(num(pr.analysis?.vanWestendorp?.pme ?? pr.analysis?.vanWestendorp?.ceiling))}</strong></td><td>Differentiated offering, brand/feature premium</td></tr>
+                    <tr><td>Ultra-Premium</td><td>Above ${cs}${fmt(num(pr.analysis?.vanWestendorp?.pme ?? pr.analysis?.vanWestendorp?.ceiling))}</td><td>Luxury/niche positioning, high switching costs</td></tr>
+                </tbody>
+            </table>
+            <p class="footnote">Price bands derived from Van Westendorp PSM analysis (PMC, OPP, PME). Not based on competitor data.</p>
+            ${trackSource('PricePoint Van Westendorp-derived positioning tiers')}
+        </div>
+        `}
 
-        ${!isBasic ? `
+        ${txt(d.market_analysis?.competitive_landscape || d.competitive_positioning?.narrative || d.competitivePositioning) ? `
         <div class="flowing-two-col" style="margin-top: 16px;">
             <h4 class="subsection-title" style="font-size: 14px; margin-top: 0;">Competitive Landscape</h4>
             <p class="paragraph" style="font-size: 13px;">${esc(txt(d.market_analysis?.competitive_landscape || d.competitive_positioning?.narrative || d.competitivePositioning))}</p>
@@ -1958,6 +2066,7 @@ export function generateHTMLTemplate(payload: any): string {
                         <td class="text-teal" style="font-weight:700;">${cs}${fmtK(recommended * 50 * 12)}</td>
                         <td style="font-weight:400;">${cs}${fmtK(recommended * 200 * 12)}</td>
                     </tr>
+                    ${totalUnitCost > 0 ? `
                     <tr>
                         <td>Gross Profit (Annual)</td>
                         <td style="font-weight:400;">${cs}${fmtK(Math.max(recommended - totalUnitCost, 0) * 10 * 12)}</td>
@@ -1968,9 +2077,10 @@ export function generateHTMLTemplate(payload: any): string {
                         <td>Gross Margin</td>
                         <td colspan="3" style="font-weight:400; text-align: center;"><strong class="text-teal">${margin.toFixed(1)}%</strong> across all scenarios (price-independent)</td>
                     </tr>
+                    ` : ''}
                 </tbody>
             </table>
-            <p class="footnote">Projections based on optimal price of ${cs}${fmt(recommended)} and unit cost of ${cs}${fmt(totalUnitCost)}.</p>
+            <p class="footnote">Projections based on optimal price of ${cs}${fmt(recommended)}${totalUnitCost > 0 ? ` and unit cost of ${cs}${fmt(totalUnitCost)}` : ''}.</p>
             ${trackSource('PricePoint Revenue Scenario Projection')}
         </div>
         `}
@@ -2022,7 +2132,7 @@ export function generateHTMLTemplate(payload: any): string {
                 </div>
                 <div class="kpi-item">
                     <div class="kpi-value" style="color:${V.gray};">${cs}${fmt(premium)}</div>
-                    <div class="kpi-label">Premium (Anchor)</div>
+                    <div class="kpi-label">Premium</div>
                 </div>
             </div>
             ${trackSource('PricePoint Pricing Engine Recommendation')}
