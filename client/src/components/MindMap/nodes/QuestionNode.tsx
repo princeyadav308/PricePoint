@@ -5,7 +5,7 @@ import {
     Compass, Users, ChevronRight, Check, Globe,
     Gem, Calculator, Target, FileText, Boxes,
     Briefcase, Monitor, Receipt, Plus, Trash2, BarChart3,
-    Lightbulb, X, AlertTriangle, Sparkles,
+    Lightbulb, X, AlertTriangle, Sparkles, Edit2,
 } from 'lucide-react';
 import type { StageConfig, QuestionField, UnitEconomicsRow } from '../../../data/questions.config';
 import { STAGE_MAP, PRODUCT_TYPE_TO_DEEP_DIVE } from '../../../data/questions.config';
@@ -1020,11 +1020,34 @@ export const QuestionNode = memo(({ id, data }: NodeProps<QuestionNodeData>) => 
                 {/* Footer */}
                 <div className="mt-6 flex justify-end">
                     {submitted ? (
-                        <div className="flex items-center gap-2 text-sm font-bold text-primary px-4 py-2">
-                            <span className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
-                                <Check size={12} />
-                            </span>
-                            {config.branchIds ? 'Branch Complete' : 'Step Complete'}
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => {
+                                    setSubmitted(false);
+                                    // Clear all N/A toggles so fields are directly editable
+                                    setNaFields(new Set());
+                                    // Remove NA_VALUE from form state for those fields
+                                    setFormState((prev) => {
+                                        const cleaned = { ...prev };
+                                        for (const key of Object.keys(cleaned)) {
+                                            if (cleaned[key] === NA_VALUE) {
+                                                delete cleaned[key];
+                                            }
+                                        }
+                                        return cleaned;
+                                    });
+                                }}
+                                className="text-xs font-medium text-slate-400 hover:text-primary transition-colors cursor-pointer flex items-center gap-1.5"
+                            >
+                                <Edit2 size={12} />
+                                Edit Answers
+                            </button>
+                            <div className="flex items-center gap-2 text-sm font-bold text-primary px-4 py-2">
+                                <span className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <Check size={12} />
+                                </span>
+                                {config.branchIds ? 'Branch Complete' : 'Step Complete'}
+                            </div>
                         </div>
                     ) : (
                         <button
