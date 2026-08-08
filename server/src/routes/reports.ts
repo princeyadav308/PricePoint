@@ -2,6 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import crypto from 'crypto';
+import { getSignedPdfUrl } from '../lib/storage';
+import { CURRENT_TEMPLATE_VERSION } from '../lib/reportVersion';
 
 const DODO_API_BASE = process.env.DODO_API_URL;
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
@@ -302,6 +304,97 @@ export default async function (server: FastifyInstance) {
         } catch (error) {
             server.log.error(error);
             return reply.status(500).send({ error: 'Failed to fetch status' });
+        }
+    });
+
+    // ──────────────────────────────────────────────────────────
+    // 4. Cached PDF Download (Cache-first, falls back to 404)
+    // ──────────────────────────────────────────────────────────
+    server.get('/api/reports/:documentId/pdf', async (request, reply) => {
+        try {
+            // 1. Verify auth token (required — private endpoint)
+            const authResult = await verifyAuth(request);
+            if ('error' in authResult) {
+                return reply.status(401).send({ error: authResult.error });
+            }
+            const user = authResult.user;
+
+            const { documentId } = request.params as { documentId: string };
+
+            // 2. Fetch Report → Session → Lead
+            const report = await prisma.report.findUnique({
+                where: { documentId },
+                select: {
+                    documentId: true,
+                    paymentStatus: true,
+                    pdfUrl: true,
+                    templateVersion: true,
+                    generationStatus: true,
+                    session: {
+                        select: {
+                            lead: {
+                                select: {
+                                    id: true,
+                                    email: true,
+                                    supabaseUserId: true,
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (!report) {
+                return reply.status(404).send({ error: 'Report not found' });
+            }
+
+            // 3. Payment gate — must be 'Paid'
+            if (report.paymentStatus !== 'Paid') {
+                return reply.status(403).send({ error: 'Access denied: report not paid' });
+            }
+
+            // 4. Ownership check
+            // Primary: supabaseUserId match (stable identity)
+            // Fallback: email match (for legacy leads without supabaseUserId)
+            const lead = report.session?.lead;
+            if (!lead) {
+                return reply.status(403).send({ error: 'Access denied' });
+            }
+
+            const isOwnerById = lead.supabaseUserId != null && lead.supabaseUserId === user.id;
+            const isOwnerByEmail = lead.supabaseUserId == null && lead.email === user.email;
+            // Note: email fallback is intentional for legacy leads where supabaseUserId was null at creation time
+
+            if (!isOwnerById && !isOwnerByEmail) {
+                server.log.warn({ documentId, userId: user.id }, 'Access denied: user does not own this report');
+                return reply.status(403).send({ error: 'Access denied' });
+            }
+
+            // 5. Check if currently generating — return 409 so client can retry
+            if (report.generationStatus === 'generating') {
+                return reply.status(409).send({ error: 'Report is being generated' });
+            }
+
+            // 6. Cache check: pdfUrl exists AND templateVersion is current
+            if (report.pdfUrl && report.templateVersion === CURRENT_TEMPLATE_VERSION) {
+                // Cache hit → generate fresh signed URL
+                try {
+                    const signedUrl = await getSignedPdfUrl(report.pdfUrl);
+                    server.log.info({ documentId }, 'Serving cached PDF via signed URL');
+                    return { url: signedUrl };
+                } catch (urlError) {
+                    // Signed URL failed (e.g. file deleted from storage) → fall through to 404
+                    server.log.warn({ documentId, err: urlError }, 'Failed to get signed URL, falling back to 404');
+                }
+            }
+
+            // 7. Cache miss (no pdfUrl, outdated templateVersion, or signed URL error)
+            // Client should fall back to the Claude + Puppeteer generation flow
+            return reply.status(404).send({ error: 'Cached PDF not available' });
+
+        } catch (error) {
+            server.log.error(error);
+            return reply.status(500).send({ error: 'Failed to retrieve report PDF' });
         }
     });
 }

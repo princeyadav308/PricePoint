@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle2, Loader2, ArrowRight, ShieldCheck, X, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useSessionStore } from '../store/useSessionStore';
+import { useMindMapStore } from '../store/useMindMapStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
 
@@ -115,10 +117,17 @@ export default function Success() {
                 const { pricingResult, intelligenceData, ...cleanSessionData } = savedSessionData;
 
                 // Fetch the generated AI narrative based on Tier
+                const { data: sessionData } = await supabase.auth.getSession();
+                const token = sessionData.session?.access_token;
+
                 const res = await fetch(`${API_BASE}/api/generate-report`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    },
                     body: JSON.stringify({
+                        documentId: documentId || undefined,
                         sessionData: cleanSessionData,
                         pricingResult: pricingResult,
                         appliedModifiers: pricingResult?.appliedModifiers || [],
@@ -264,10 +273,47 @@ export default function Success() {
                             const handleDownloadPDF = async () => {
                                 setPdfLoading(true);
                                 try {
-                                    const res = await fetch(`${API_BASE}/api/generate-pdf`, {
+                                    const { data: sessionAuth } = await supabase.auth.getSession();
+                                    const token = sessionAuth.session?.access_token;
+
+                                    // Step 1: Try the cache endpoint first
+                                    if (documentId && token) {
+                                        const cacheRes = await fetch(`${API_BASE}/api/reports/${documentId}/pdf`, {
+                                            headers: { 'Authorization': `Bearer ${token}` }
+                                        });
+
+                                        if (cacheRes.ok) {
+                                            // Cache hit — open signed URL directly
+                                            const cacheData = await cacheRes.json();
+                                            window.open(cacheData.url, '_blank');
+                                            return;
+                                        }
+
+                                        if (cacheRes.status === 409) {
+                                            // Another process is generating — auto-retry up to 3 times
+                                            for (let attempt = 0; attempt < 3; attempt++) {
+                                                await new Promise(resolve => setTimeout(resolve, 5000));
+                                                const retryRes = await fetch(`${API_BASE}/api/reports/${documentId}/pdf`, {
+                                                    headers: { 'Authorization': `Bearer ${token}` }
+                                                });
+                                                if (retryRes.ok) {
+                                                    const retryData = await retryRes.json();
+                                                    window.open(retryData.url, '_blank');
+                                                    return;
+                                                }
+                                                if (retryRes.status !== 409) break; // not still generating
+                                            }
+                                            // Exhausted retries — fall through to direct generation
+                                        }
+                                        // status 404 → cache miss, fall through to generate
+                                    }
+
+                                    // Step 2: Fallback — generate PDF directly via Puppeteer
+                                    const pdfRes = await fetch(`${API_BASE}/api/generate-pdf`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
+                                            documentId: documentId || undefined,
                                             claudeData: reportPayload.claudeData,
                                             pricingResult: savedSessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } },
                                             sessionData: savedSessionData || {},
@@ -275,11 +321,12 @@ export default function Success() {
                                             validationReport: reportPayload.validationReport || null
                                         })
                                     });
-                                    const blob = await res.blob();
+                                    const blob = await pdfRes.blob();
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
-                                    a.download = `PricePoint_Intelligence_${documentId}.pdf`;
+                                    const projectName = savedSessionData?.answers?.projectName?.value || 'PricePoint';
+                                    a.download = `${projectName} Price Report.pdf`;
                                     a.click();
                                     URL.revokeObjectURL(url);
                                 } catch (err) {
@@ -308,7 +355,11 @@ export default function Success() {
                         })()}
 
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => {
+                                useSessionStore.getState().resetSession();
+                                useMindMapStore.getState().resetMap();
+                                navigate('/');
+                            }}
                             className="w-full py-4 rounded-full bg-background-light dark:bg-background-dark text-slate-500 hover:text-text-light dark:hover:text-text-dark font-bold text-sm outer-shadow transition-all active:scale-95 flex items-center justify-center gap-2"
                         >
                             Return to Dashboard
@@ -329,7 +380,11 @@ export default function Success() {
                             We couldn't verify your payment structure or the network timed out. Please check your email for the receipt or contact support.
                         </p>
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => {
+                                useSessionStore.getState().resetSession();
+                                useMindMapStore.getState().resetMap();
+                                navigate('/');
+                            }}
                             className="w-full py-4 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-sm outer-shadow transition-all active:scale-95"
                         >
                             Return Home

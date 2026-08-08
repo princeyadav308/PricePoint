@@ -279,7 +279,42 @@ function ReportCard({ report }: { report: UserReport }) {
             const token = await getAuthToken();
             const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
 
-            // 1. Fetch full report data from backend
+            // Step 1: Try the cache endpoint first (instant — no Claude or Puppeteer)
+            const cacheRes = await fetch(`${API_BASE}/api/reports/${report.documentId}/pdf`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (cacheRes.ok) {
+                // Cache hit — open signed URL directly (instant download)
+                const cacheData = await cacheRes.json();
+                window.open(cacheData.url, '_blank');
+                return;
+            }
+
+            if (cacheRes.status === 409) {
+                // Another process is still generating — auto-retry up to 3 times (every 5s)
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    const retryRes = await fetch(`${API_BASE}/api/reports/${report.documentId}/pdf`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (retryRes.ok) {
+                        const retryData = await retryRes.json();
+                        window.open(retryData.url, '_blank');
+                        return;
+                    }
+                    if (retryRes.status !== 409) break; // no longer generating, fall through
+                }
+                // Exhausted retries — fall through to full generation
+            }
+
+            if (cacheRes.status === 403) {
+                console.error('Access denied to report');
+                return;
+            }
+
+            // Step 2: Cache miss (404) or retries exhausted — full generation flow
+            // 2a. Fetch full report data from backend
             const res = await fetch(`${API_BASE}/api/user/reports/${report.documentId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -287,15 +322,18 @@ function ReportCard({ report }: { report: UserReport }) {
 
             if (!data.success) {
                 console.error('Failed to fetch report data');
-                setLoadingData(false);
                 return;
             }
 
-            // 2. Generate Claude narrative
+            // 2b. Generate Claude narrative
             const genRes = await fetch(`${API_BASE}/api/generate-report`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
                 body: JSON.stringify({
+                    documentId: report.documentId,
                     sessionData: data.report.sessionData,
                     pricingResult: data.report.sessionData?.pricingResult,
                     appliedModifiers: data.report.sessionData?.pricingResult?.appliedModifiers || [],
@@ -311,11 +349,12 @@ function ReportCard({ report }: { report: UserReport }) {
             };
             const validationReport = genData.validationReport || null;
 
-            // 3. Generate PDF via Puppeteer endpoint — pass validation metadata for provenance dots
+            // 2c. Generate PDF via Puppeteer — passes documentId so it gets cached
             const pdfRes = await fetch(`${API_BASE}/api/generate-pdf`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    documentId: report.documentId,
                     claudeData,
                     pricingResult: data.report.sessionData?.pricingResult || { budget: 0, recommended: 0, premium: 0, analysis: { costPlusBase: 0, valueMultiplier: 1, totalUnitCost: 0 } },
                     sessionData: data.report.sessionData || {},
@@ -327,7 +366,8 @@ function ReportCard({ report }: { report: UserReport }) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `PricePoint_Intelligence_${report.documentId}.pdf`;
+            const projectName = data.report.sessionData?.answers?.projectName?.value || 'PricePoint';
+            a.download = `${projectName} Price Report.pdf`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (err) {

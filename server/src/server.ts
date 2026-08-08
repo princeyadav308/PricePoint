@@ -6,14 +6,19 @@ import { validateReport } from './utils/reportValidator';
 import puppeteer from 'puppeteer';
 import { generateHTMLTemplate } from './utils/pdfTemplate';
 import { integrateFastifyLogger, logger } from './utils/logger';
+import crypto from 'crypto';
 
 // Import New Phase 4 routes
 import reportRoutes from './routes/reports';
 import webhookRoutes from './routes/webhooks';
 import intelligenceRoutes from './routes/intelligence';
 import userRoutes from './routes/user';
+import draftRoutes from './routes/drafts';
 
 import { supabase } from './lib/supabase';
+import { prisma } from './lib/db';
+import * as reportVersion from './lib/reportVersion';
+import { ensureBucket, uploadPdf, getSignedPdfUrl } from './lib/storage';
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +41,7 @@ server.register(reportRoutes);
 server.register(webhookRoutes);
 server.register(intelligenceRoutes);
 server.register(userRoutes);
+server.register(draftRoutes);
 
 // Root Route
 server.get('/', async (request, reply) => {
@@ -61,7 +67,7 @@ server.post('/api/generate-report', async (request, reply) => {
             }
         }
 
-        const { sessionData, pricingResult, appliedModifiers, tier, intelligenceData } = request.body as any;
+        const { documentId, sessionData, pricingResult, appliedModifiers, tier, intelligenceData } = request.body as any;
 
         // Secure Endpoint: Ensure core data exists
         if (!sessionData || !pricingResult) {
@@ -101,6 +107,25 @@ server.post('/api/generate-report', async (request, reply) => {
             );
         }
 
+        // If documentId provided, persist claudeData + schema version to Report
+        if (documentId) {
+            await prisma.report.update({
+                where: { documentId },
+                data: {
+                    claudeData: validatedReport,
+                    templateVersion: reportVersion.CURRENT_TEMPLATE_VERSION,
+                    generationStatus: 'complete',
+                }
+            });
+
+            server.log.info({
+                documentId,
+                tier,
+                journeyType,
+                templateVersion: reportVersion.CURRENT_TEMPLATE_VERSION,
+            }, 'Persisted Claude narrative to Report');
+        }
+
         // Return validated report — not raw Claude output
         return {
             success: true,
@@ -132,11 +157,43 @@ server.post('/api/generate-pdf', async (request, reply) => {
             }
         }
 
-        const { claudeData, pricingResult, sessionData, tier, validationReport } = request.body as any;
+        const { documentId, claudeData, pricingResult, sessionData, tier, validationReport } = request.body as any;
 
         // Validate required data
         if (!claudeData || !sessionData) {
             return reply.status(400).send({ error: 'Missing required data: claudeData or sessionData' });
+        }
+
+        // If documentId provided, attempt atomic lock to prevent concurrent generation
+        if (documentId) {
+            // Check current status first
+            const existingReport = await prisma.report.findUnique({
+                where: { documentId },
+                select: { generationStatus: true, templateVersion: true }
+            });
+
+            if (!existingReport) {
+                return reply.status(404).send({ error: 'Report not found' });
+            }
+
+            // Atomic lock: try to claim "generating" status
+            // Only succeeds if status is NOT already 'generating'
+            // (The 5-min stale safety valve requires an updatedAt field — add to schema if needed in future)
+            const lockResult = await prisma.report.updateMany({
+                where: {
+                    documentId,
+                    generationStatus: { not: 'generating' }
+                },
+                data: { generationStatus: 'generating' }
+            });
+
+            if (lockResult.count === 0) {
+                // Another process is generating this PDF
+                server.log.warn({ documentId }, 'PDF generation already in progress for document');
+                return reply.status(409).send({ error: 'Report is being generated' });
+            }
+
+            server.log.info({ documentId }, 'Acquired PDF generation lock');
         }
 
         // Generate HTML from template — pass validation metadata for provenance dots
@@ -176,13 +233,55 @@ server.post('/api/generate-pdf', async (request, reply) => {
             `,
         });
 
+        // If documentId provided, attempt to upload to Supabase Storage
+        if (documentId) {
+            try {
+                // Ensure bucket exists
+                await ensureBucket();
+
+                // Upload PDF
+                const verificationHash = crypto.randomBytes(16).toString('hex');
+                const storagePath = await uploadPdf(documentId, verificationHash, pdf);
+
+                // Update report with storage path, template version, and status
+                await prisma.report.update({
+                    where: { documentId },
+                    data: {
+                        pdfUrl: storagePath,
+                        templateVersion: reportVersion.CURRENT_TEMPLATE_VERSION,
+                        generationStatus: 'complete',
+                        verificationHash,
+                    }
+                });
+
+                server.log.info({ documentId, storagePath }, 'PDF uploaded to storage and report updated');
+            } catch (storageError) {
+                // Storage upload failed — serve PDF directly and mark as failed
+                server.log.error({ documentId, err: storageError }, 'PDF storage upload failed, serving directly');
+                await prisma.report.update({
+                    where: { documentId },
+                    data: { generationStatus: 'failed' }
+                }).catch(() => {}); // Don't throw on status update failure
+            }
+        }
+
         // Return PDF as binary response
         reply.type('application/pdf');
-        reply.header('Content-Disposition', `attachment; filename="PricePoint_Report_${sessionData?.answers?.projectName?.value || 'Document'}.pdf"`);
+        reply.header('Content-Disposition', `attachment; filename="${sessionData?.answers?.projectName?.value || 'PricePoint'} Price Report.pdf"`);
         return reply.send(pdf);
 
     } catch (error) {
         server.log.error(error);
+
+        // If documentId was provided, mark generation as failed
+        const { documentId } = request.body as any;
+        if (documentId) {
+            await prisma.report.update({
+                where: { documentId },
+                data: { generationStatus: 'failed' }
+            }).catch(() => {});
+        }
+
         return reply.status(500).send({ error: 'Failed to generate PDF' });
     } finally {
         // Always clean up page and browser resources

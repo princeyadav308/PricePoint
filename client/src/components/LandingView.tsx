@@ -121,6 +121,7 @@ export const LandingView: React.FC = () => {
     const preFillStatus = useIntelligenceStore((s) => s.preFillStatus);
     const runGeolocate = useIntelligenceStore((s) => s.runGeolocate);
     const runPreFill = useIntelligenceStore((s) => s.runPreFill);
+    const setPreFillSkipped = useIntelligenceStore((s) => s.setPreFillSkipped);
 
     const [step, setStep] = useState<LandingStep>('input');
     const [inputValue, setInputValue] = useState('');
@@ -158,11 +159,14 @@ export const LandingView: React.FC = () => {
             if (preFillStatus === 'failed') {
                 // Show brief failure message, then advance to journey
                 setFailMessage('Could not analyse — you\'ll enter details manually.');
-                const timer = setTimeout(() => setStep('journey'), 2000);
+                const timer = setTimeout(() => {
+                    setPreFillSkipped();
+                    setStep('journey');
+                }, 2000);
                 return () => clearTimeout(timer);
             }
         }
-    }, [step, preFillStatus, preFillData]);
+    }, [step, preFillStatus, preFillData, setPreFillSkipped]);
 
     const handleAnalyze = useCallback(() => {
         if (!inputValue.trim()) return;
@@ -171,8 +175,9 @@ export const LandingView: React.FC = () => {
     }, [inputValue, runPreFill]);
 
     const handleSkipToJourney = useCallback(() => {
+        setPreFillSkipped();
         setStep('journey');
-    }, []);
+    }, [setPreFillSkipped]);
 
     const handleConfirmPreFill = useCallback(() => {
         // Save pre-fill data to session answers

@@ -158,7 +158,7 @@ export class Logger {
     }
 
     // Fallback to console
-    const formatted = formatLogEntry(entry, this.config.prettyPrint);
+    const formatted = formatLogEntry(entry, this.config.prettyPrint ?? false);
     if (level === LogLevel.ERROR || level === LogLevel.FATAL) {
       console.error(formatted);
     } else if (level === LogLevel.WARN) {

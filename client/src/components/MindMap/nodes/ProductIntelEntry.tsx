@@ -206,9 +206,18 @@ export const ProductIntelEntry = memo(({ id, data: _data }: NodeProps<ProductInt
         }
     }, [phase, preFillStatus, preFillData]);
 
-    // Auto-skip if preFillData is already present from LandingView
+    // Auto-skip if preFillData is already present from LandingView or if skipped
     useEffect(() => {
-        if (preFillData && phase === 'input' && !submitted) {
+        if ((preFillData || preFillStatus === 'skipped') && phase === 'input' && !submitted) {
+            
+            // Save geo data if available
+            const intel = useIntelligenceStore.getState();
+            if (intel.geoData) {
+                addAnswer('geo_country', intel.geoData.country);
+                addAnswer('geo_currency', intel.geoData.currency);
+                addAnswer('geo_vat', intel.geoData.suggestedVatRate);
+            }
+
             setPhase('done');
             setSubmitted(true);
             const nextConfig = STAGE_MAP['product_classification'];

@@ -72,7 +72,7 @@ export interface ValidationAlert {
     suggestion?: string;
 }
 
-export type AsyncStatus = 'idle' | 'loading' | 'success' | 'failed';
+export type AsyncStatus = 'idle' | 'loading' | 'success' | 'failed' | 'skipped';
 
 // ── Store Interface ──────────────────────────────────────────
 
@@ -110,6 +110,7 @@ interface IntelligenceState {
     // Actions
     runGeolocate: () => Promise<void>;
     runPreFill: (urlOrName: string) => Promise<void>;
+    setPreFillSkipped: () => void;
     runCompetitorDiscovery: (keyword: string, category: string, geography: string, tier?: string) => Promise<void>;
     runPriceScraping: (urls: string[], tier?: string, userDomain?: string) => Promise<void>;
     runDemandAnalysis: (keyword: string, country: string, tier?: string) => Promise<void>;
@@ -213,6 +214,8 @@ export const useIntelligenceStore = create<IntelligenceState>((set) => ({
             set({ preFillStatus: 'failed' });
         }
     },
+
+    setPreFillSkipped: () => set({ preFillStatus: 'skipped' }),
 
     // ── Competitor Discovery ─────────────────────────────────
     runCompetitorDiscovery: async (keyword, category, geography, tier) => {
