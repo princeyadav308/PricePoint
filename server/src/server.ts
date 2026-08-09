@@ -18,6 +18,7 @@ import draftRoutes from './routes/drafts';
 import { supabase } from './lib/supabase';
 import { prisma } from './lib/db';
 import * as reportVersion from './lib/reportVersion';
+import { GenerationStatus } from '@prisma/client';
 import { ensureBucket, uploadPdf, getSignedPdfUrl } from './lib/storage';
 
 // Load environment variables
@@ -114,7 +115,7 @@ server.post('/api/generate-report', async (request, reply) => {
                 data: {
                     claudeData: validatedReport,
                     templateVersion: reportVersion.CURRENT_TEMPLATE_VERSION,
-                    generationStatus: 'complete',
+                    generationStatus: GenerationStatus.complete,
                 }
             });
 
@@ -182,9 +183,9 @@ server.post('/api/generate-pdf', async (request, reply) => {
             const lockResult = await prisma.report.updateMany({
                 where: {
                     documentId,
-                    generationStatus: { not: 'generating' }
+                    generationStatus: { not: GenerationStatus.generating }
                 },
-                data: { generationStatus: 'generating' }
+                data: { generationStatus: GenerationStatus.generating }
             });
 
             if (lockResult.count === 0) {
@@ -249,7 +250,7 @@ server.post('/api/generate-pdf', async (request, reply) => {
                     data: {
                         pdfUrl: storagePath,
                         templateVersion: reportVersion.CURRENT_TEMPLATE_VERSION,
-                        generationStatus: 'complete',
+                        generationStatus: GenerationStatus.complete,
                         verificationHash,
                     }
                 });
@@ -260,7 +261,7 @@ server.post('/api/generate-pdf', async (request, reply) => {
                 server.log.error({ documentId, err: storageError }, 'PDF storage upload failed, serving directly');
                 await prisma.report.update({
                     where: { documentId },
-                    data: { generationStatus: 'failed' }
+                    data: { generationStatus: GenerationStatus.failed }
                 }).catch(() => {}); // Don't throw on status update failure
             }
         }
@@ -278,7 +279,7 @@ server.post('/api/generate-pdf', async (request, reply) => {
         if (documentId) {
             await prisma.report.update({
                 where: { documentId },
-                data: { generationStatus: 'failed' }
+                data: { generationStatus: GenerationStatus.failed }
             }).catch(() => {});
         }
 

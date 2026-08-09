@@ -1,9 +1,12 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/db';
+import { PaymentStatus, GenerationStatus, Prisma } from '@prisma/client';
 import { supabase } from '../lib/supabase';
 import crypto from 'crypto';
 import { getSignedPdfUrl } from '../lib/storage';
 import { CURRENT_TEMPLATE_VERSION } from '../lib/reportVersion';
+import puppeteer from 'puppeteer';
+import { generateReceiptHTML } from '../utils/receiptTemplate';
 
 const DODO_API_BASE = process.env.DODO_API_URL;
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
@@ -91,7 +94,7 @@ export default async function (server: FastifyInstance) {
                     documentId: generateDocumentId(),
                     sessionId: session.id,
                     tier: tier,
-                    paymentStatus: 'Pending', // Will be marked 'Paid' by webhook or proactive polling
+                    paymentStatus: PaymentStatus.Pending, // Will be marked 'Paid' by webhook or proactive polling
                 }
             });
 
@@ -209,8 +212,8 @@ export default async function (server: FastifyInstance) {
             await prisma.report.update({
                 where: { documentId },
                 data: {
-                    paymentStatus: 'Paid',
-                    amountPaid: 0,
+                    paymentStatus: PaymentStatus.Paid,
+                    amountPaid: new Prisma.Decimal(0),
                     currency: 'USD',
                     stripeCheckoutId: `bypass_${Date.now()}`
                 }
@@ -254,7 +257,7 @@ export default async function (server: FastifyInstance) {
             }
 
             // If it's already Paid or Failed, just return it
-            if (report.paymentStatus !== 'Pending') {
+            if (report.paymentStatus !== PaymentStatus.Pending) {
                 return { paymentStatus: report.paymentStatus, sessionData: report.session?.rawData, tier: report.tier };
             }
 
@@ -282,16 +285,16 @@ export default async function (server: FastifyInstance) {
 
                             await prisma.report.update({
                                 where: { documentId },
-                                data: { paymentStatus: 'Paid', amountPaid: paidAmount, currency: paidCurrency }
+                                data: { paymentStatus: PaymentStatus.Paid, amountPaid: paidAmount !== null ? new Prisma.Decimal(paidAmount) : null, currency: paidCurrency }
                             });
                             server.log.info(`✅ Report ${documentId} marked as PAID via proactive polling.`);
-                            return { paymentStatus: 'Paid', sessionData: report.session?.rawData as any, tier: report.tier };
+                            return { paymentStatus: PaymentStatus.Paid, sessionData: report.session?.rawData as any, tier: report.tier };
                         } else if (['failed', 'cancelled', 'expired'].includes(paymentStatus)) {
                             await prisma.report.update({
                                 where: { documentId },
-                                data: { paymentStatus: 'Failed' }
+                                data: { paymentStatus: PaymentStatus.Failed }
                             });
-                            return { paymentStatus: 'Failed' };
+                            return { paymentStatus: PaymentStatus.Failed };
                         }
                         // If still pending, fall through and return 'Pending'
                     }
@@ -371,7 +374,7 @@ export default async function (server: FastifyInstance) {
             }
 
             // 5. Check if currently generating — return 409 so client can retry
-            if (report.generationStatus === 'generating') {
+            if (report.generationStatus === GenerationStatus.generating) {
                 return reply.status(409).send({ error: 'Report is being generated' });
             }
 
@@ -397,4 +400,114 @@ export default async function (server: FastifyInstance) {
             return reply.status(500).send({ error: 'Failed to retrieve report PDF' });
         }
     });
+
+    // ──────────────────────────────────────────────────────────
+    // 5. Receipt PDF Download (Generates on-the-fly)
+    // ──────────────────────────────────────────────────────────
+    server.get('/api/reports/:documentId/receipt', async (request, reply) => {
+        let browser = null;
+        let page = null;
+        try {
+            // 1. Verify auth token (required — private endpoint)
+            const authResult = await verifyAuth(request);
+            if ('error' in authResult) {
+                return reply.status(401).send({ error: authResult.error });
+            }
+            const user = authResult.user;
+
+            const { documentId } = request.params as { documentId: string };
+
+            // 2. Fetch Report → Session → Lead
+            const report = await prisma.report.findUnique({
+                where: { documentId },
+                select: {
+                    documentId: true,
+                    tier: true,
+                    paymentStatus: true,
+                    amountPaid: true,
+                    currency: true,
+                    createdAt: true,
+                    session: {
+                        select: {
+                            journeyType: true,
+                            lead: {
+                                select: {
+                                    id: true,
+                                    email: true,
+                                    supabaseUserId: true,
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (!report) {
+                return reply.status(404).send({ error: 'Report not found' });
+            }
+
+            // 3. Payment gate — must be 'Paid'
+            if (report.paymentStatus !== 'Paid') {
+                return reply.status(403).send({ error: 'Access denied: report not paid' });
+            }
+
+            // 4. Ownership check (same logic as PDF endpoint)
+            const lead = report.session?.lead;
+            if (!lead) {
+                return reply.status(403).send({ error: 'Access denied' });
+            }
+
+            const isOwnerById = lead.supabaseUserId != null && lead.supabaseUserId === user.id;
+            const isOwnerByEmail = lead.supabaseUserId == null && lead.email === user.email;
+
+            if (!isOwnerById && !isOwnerByEmail) {
+                server.log.warn({ documentId, userId: user.id }, 'Receipt access denied: user does not own this report');
+                return reply.status(403).send({ error: 'Access denied' });
+            }
+
+            // 5. Generate receipt HTML
+            const receiptHTML = generateReceiptHTML({
+                documentId: report.documentId,
+                tier: report.tier,
+                amountPaid: report.amountPaid,
+                currency: report.currency,
+                createdAt: report.createdAt.toISOString(),
+                journeyType: report.session.journeyType,
+                userName: user.user_metadata?.full_name || user.user_metadata?.name || null,
+                userEmail: user.email || lead.email,
+            });
+
+            // 6. Generate PDF via Puppeteer
+            browser = await puppeteer.launch({
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+
+            page = await browser.newPage();
+            await page.setContent(receiptHTML, { waitUntil: 'networkidle0' });
+
+            const pdf = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
+            });
+
+            // 7. Return PDF
+            reply.type('application/pdf');
+            reply.header('Content-Disposition', `attachment; filename="PricePoint Receipt ${report.documentId.slice(0, 8).toUpperCase()}.pdf"`);
+            return reply.send(pdf);
+
+        } catch (error) {
+            server.log.error(error);
+            return reply.status(500).send({ error: 'Failed to generate receipt' });
+        } finally {
+            if (page) {
+                try { await page.close(); } catch { /* ignore close errors */ }
+            }
+            if (browser) {
+                try { await browser.close(); } catch { /* ignore close errors */ }
+            }
+        }
+    });
 }
+

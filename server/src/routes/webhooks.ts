@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/db';
+import { PaymentStatus } from '@prisma/client';
 import crypto from 'crypto';
 
 /**
@@ -78,14 +79,14 @@ export default async function (server: FastifyInstance) {
                     select: { paymentStatus: true }
                 });
 
-                if (existingReport?.paymentStatus === 'Paid') {
+                if (existingReport?.paymentStatus === PaymentStatus.Paid) {
                     server.log.info(`Report ${documentId} already marked as PAID, skipping duplicate webhook.`);
                     return reply.send({ received: true, alreadyProcessed: true });
                 }
 
                 await prisma.report.update({
                     where: { documentId },
-                    data: { paymentStatus: 'Paid' }
+                    data: { paymentStatus: PaymentStatus.Paid }
                 });
 
                 server.log.info(`Report ${documentId} successfully marked as PAID via webhook.`);

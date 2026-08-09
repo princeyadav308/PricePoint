@@ -21,7 +21,7 @@ interface ReportEmailPayload {
     userName?: string;
     documentId: string;
     tier: string;
-    amountPaid?: number | null;
+    amountPaid?: number | { toNumber(): number } | null;
     currency?: string | null;
     reportDate: string; // ISO string
     appUrl?: string;
@@ -40,7 +40,7 @@ export async function sendReportEmail(payload: ReportEmailPayload): Promise<bool
         year: 'numeric', month: 'long', day: 'numeric'
     });
     const priceText = amountPaid
-        ? `${currency || 'USD'} ${amountPaid.toFixed(2)}`
+        ? `${currency || 'USD'} ${Number(amountPaid).toFixed(2)}`
         : 'Paid';
     const siteUrl = appUrl || process.env.APP_URL || 'http://localhost:5173';
 

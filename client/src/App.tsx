@@ -94,7 +94,7 @@ function App() {
           completedStages: serverDraft!.rawData.completedStages || [],
           isUnlocked: serverDraft!.rawData.isUnlocked || false,
           createdAt: serverDraft!.rawData.createdAt,
-          updatedAt: Number(serverDraft!.lastUpdatedAt) || Date.now(),
+          updatedAt: new Date(serverDraft!.lastUpdatedAt || 0).getTime() || Date.now(),
         });
         return;
       }
@@ -111,7 +111,7 @@ function App() {
       // ── Case 2: Same session (local was synced from this account) ──
       if (localSessionId && localSessionId === serverSessionId) {
         const localTs = sessionStore.updatedAt || 0;
-        const serverTs = Number(serverDraft!.lastUpdatedAt) || 0;
+        const serverTs = new Date(serverDraft!.lastUpdatedAt || 0).getTime() || 0;
 
         if (localTs >= serverTs) {
           console.log('[DraftSync] Same session, local is newer → pushing to server');
@@ -148,7 +148,7 @@ function App() {
           sessionId: serverSessionId,
           journeyType: serverDraft!.rawData.journeyType,
           completedStages: serverDraft!.rawData.completedStages || [],
-          updatedAt: Number(serverDraft!.lastUpdatedAt) || null,
+          updatedAt: new Date(serverDraft!.lastUpdatedAt || 0).getTime() || null,
         },
         serverRawData: serverDraft!.rawData,
       });

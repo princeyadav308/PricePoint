@@ -267,6 +267,7 @@ export default function ProfilePage() {
 
 function ReportCard({ report }: { report: UserReport }) {
     const [loadingData, setLoadingData] = useState(false);
+    const [receiptLoading, setReceiptLoading] = useState(false);
 
     const getAuthToken = async () => {
         const { data } = await supabase.auth.getSession();
@@ -377,6 +378,35 @@ function ReportCard({ report }: { report: UserReport }) {
         }
     };
 
+    const handleDownloadReceipt = async () => {
+        setReceiptLoading(true);
+        try {
+            const token = await getAuthToken();
+            const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
+
+            const res = await fetch(`${API_BASE}/api/reports/${report.documentId}/receipt`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!res.ok) {
+                console.error('Failed to download receipt:', res.status);
+                return;
+            }
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `PricePoint Receipt ${report.documentId.slice(0, 8).toUpperCase()}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Error downloading receipt:', err);
+        } finally {
+            setReceiptLoading(false);
+        }
+    };
+
     const getTierIcon = (tier: string) => {
         switch (tier) {
             case 'Investor': return <Crown size={14} />;
@@ -439,7 +469,7 @@ function ReportCard({ report }: { report: UserReport }) {
             </div>
 
             {/* Download Section */}
-            <div className="px-5 pb-5">
+            <div className="px-5 pb-5 flex flex-col gap-2.5">
                 <button
                     onClick={handleDownload}
                     disabled={loadingData}
@@ -451,7 +481,19 @@ function ReportCard({ report }: { report: UserReport }) {
                         <><Download size={16} /> Download Report</>
                     )}
                 </button>
+                <button
+                    onClick={handleDownloadReceipt}
+                    disabled={receiptLoading}
+                    className="w-full py-3 rounded-xl bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-bold text-sm inner-shadow hover:opacity-80 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    {receiptLoading ? (
+                        <><Loader2 size={14} className="animate-spin" /> Generating Receipt...</>
+                    ) : (
+                        <><CreditCard size={14} /> Download Receipt</>
+                    )}
+                </button>
             </div>
         </div>
     );
 }
+

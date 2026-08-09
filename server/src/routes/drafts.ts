@@ -100,16 +100,16 @@ export default async function (server: FastifyInstance) {
 
             if (existing) {
                 // Stale-write protection: reject if incoming timestamp is older
-                const incomingTs = BigInt(lastUpdatedAt || 0);
-                const storedTs = existing.lastUpdatedAt ?? BigInt(0);
+                const incomingDate = new Date(Number(lastUpdatedAt) || 0);
+                const storedDate = existing.lastUpdatedAt ?? new Date(0);
 
-                if (incomingTs < storedTs) {
+                if (incomingDate < storedDate) {
                     server.log.warn(
-                        `Stale draft write rejected for session ${draftSessionId}: incoming=${incomingTs}, stored=${storedTs}`
+                        `Stale draft write rejected for session ${draftSessionId}: incoming=${incomingDate.toISOString()}, stored=${storedDate.toISOString()}`
                     );
                     return reply.status(409).send({
                         error: 'Stale write rejected. A newer version exists on the server.',
-                        serverLastUpdatedAt: storedTs.toString(),
+                        serverLastUpdatedAt: storedDate.toISOString(),
                     });
                 }
 
@@ -119,7 +119,7 @@ export default async function (server: FastifyInstance) {
                     data: {
                         journeyType: journeyType || existing.journeyType,
                         rawData: { ...rest, journeyType },
-                        lastUpdatedAt: incomingTs,
+                        lastUpdatedAt: incomingDate,
                     },
                 });
 
@@ -137,7 +137,7 @@ export default async function (server: FastifyInstance) {
                         leadId: lead.id,
                         journeyType: journeyType || 'unknown',
                         rawData: { ...rest, journeyType },
-                        lastUpdatedAt: BigInt(lastUpdatedAt || Date.now()),
+                        lastUpdatedAt: new Date(Number(lastUpdatedAt) || Date.now()),
                     },
                 });
 
@@ -197,7 +197,7 @@ export default async function (server: FastifyInstance) {
                     sessionId: draft.draftSessionId,
                     serverId: draft.id,
                     journeyType: draft.journeyType,
-                    lastUpdatedAt: draft.lastUpdatedAt?.toString() ?? null,
+                    lastUpdatedAt: draft.lastUpdatedAt?.toISOString() ?? null,
                     rawData: draft.rawData,
                 },
             };

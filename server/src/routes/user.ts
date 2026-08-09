@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/db';
 import { supabase } from '../lib/supabase';
+import { PaymentStatus } from '@prisma/client';
 
 export default async function (server: FastifyInstance) {
 
@@ -68,7 +69,7 @@ export default async function (server: FastifyInstance) {
                     sessions: {
                         include: {
                             reports: {
-                                where: { paymentStatus: 'Paid' },
+                                where: { paymentStatus: PaymentStatus.Paid },
                                 orderBy: { createdAt: 'desc' },
                                 select: {
                                     documentId: true,
@@ -130,7 +131,7 @@ export default async function (server: FastifyInstance) {
                 include: {
                     session: {
                         include: {
-                            lead: { select: { email: true } }
+                            lead: { select: { email: true, supabaseUserId: true } }
                         }
                     }
                 }
@@ -141,7 +142,10 @@ export default async function (server: FastifyInstance) {
             }
 
             // Ensure the report belongs to the authenticated user
-            if (report.session.lead.email !== data.user.email) {
+            const lead = report.session.lead;
+            const isOwnerById = lead.supabaseUserId != null && lead.supabaseUserId === data.user.id;
+            const isOwnerByEmail = lead.supabaseUserId == null && lead.email === data.user.email;
+            if (!isOwnerById && !isOwnerByEmail) {
                 return reply.status(403).send({ error: 'Access denied' });
             }
 
@@ -190,18 +194,21 @@ export default async function (server: FastifyInstance) {
                 include: {
                     session: {
                         include: {
-                            lead: { select: { email: true } }
+                            lead: { select: { email: true, supabaseUserId: true } }
                         }
                     }
                 }
             });
 
-            if (!report || report.paymentStatus !== 'Paid') {
+            if (!report || report.paymentStatus !== PaymentStatus.Paid) {
                 return reply.status(404).send({ error: 'Paid report not found' });
             }
 
             // Ensure the report belongs to the authenticated user
-            if (report.session.lead.email !== data.user.email) {
+            const lead = report.session.lead;
+            const isOwnerById = lead.supabaseUserId != null && lead.supabaseUserId === data.user.id;
+            const isOwnerByEmail = lead.supabaseUserId == null && lead.email === data.user.email;
+            if (!isOwnerById && !isOwnerByEmail) {
                 return reply.status(403).send({ error: 'Access denied' });
             }
 

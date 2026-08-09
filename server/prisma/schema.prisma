@@ -7,6 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PaymentStatus {
+  Pending
+  Paid
+  Failed
+}
+
+enum GenerationStatus {
+  idle
+  generating
+  complete
+  failed
+}
+
 model Lead {
   id             String   @id @default(uuid())
   email          String   @unique
@@ -22,7 +35,7 @@ model Session {
   leadId          String
   journeyType     String
   rawData         Json
-  lastUpdatedAt   BigInt?
+  lastUpdatedAt   DateTime?
   updatedAt       DateTime @updatedAt
   
   lead            Lead     @relation(fields: [leadId], references: [id])
@@ -34,14 +47,14 @@ model Report {
   sessionId        String
   tier             String
   stripeCheckoutId String?
-  paymentStatus    String   @default("Pending")
+  paymentStatus    PaymentStatus @default(Pending)
   pdfUrl           String?
   claudeData       Json?
   templateVersion  Int      @default(1)
-  generationStatus String   @default("idle")
+  generationStatus GenerationStatus @default(idle)
   verificationHash String?
   createdAt        DateTime @default(now())
-  amountPaid       Float?
+  amountPaid       Decimal? @db.Decimal(10, 2)
   currency         String?
 
   session          Session  @relation(fields: [sessionId], references: [id])
